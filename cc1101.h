@@ -5,12 +5,11 @@
 
 #define PIN_UNUSED 0xff
 
-#define CC1101_SPI_MAX_FREQ    6500000    /* 6.5 MHz */
+#define CC1101_SPI_MAX_FREQ    4500000    /* 6.5 MHz */
 #define CC1101_SPI_DATA_ORDER  MSBFIRST
 #define CC1101_SPI_DATA_MODE   SPI_MODE0  /* clk low, leading edge */
 
 #define CC1101_CRYSTAL_FREQ    26         /* 26 MHz */
-
 
 #define CC1101_WRITE           0x00
 #define CC1101_READ            0x80
@@ -29,6 +28,8 @@
 #define CC1101_CMD_NOP         0x3d  /* No operation */
 
 /* Registers */
+#define CC1101_REG_SYNC1       0x04  /* Sync Word, High Byte */
+#define CC1101_REG_SYNC0       0x05  /* Sync Word, Low Byte */
 #define CC1101_REG_PKTLEN      0x06
 #define CC1101_REG_PKTCTRL1    0x07
 #define CC1101_REG_PKTCTRL0    0x08  /* Packet Automation Control */
@@ -38,6 +39,7 @@
 #define CC1101_REG_MDMCFG4     0x10
 #define CC1101_REG_MDMCFG3     0x11
 #define CC1101_REG_MDMCFG2     0x12  /* Modem Configuration */
+#define CC1101_REG_MDMCFG1     0x13
 #define CC1101_REG_FREQ0       0x0f
 
 #define CC1101_REG_MCSM2       0x16
@@ -78,6 +80,8 @@
 
 #define CC1101_DEFVAL_PKTLEN   16
 
+namespace CC1101 {
+
 enum Status {
   STATUS_OK = 0,
 
@@ -85,18 +89,18 @@ enum Status {
   STATUS_ERROR_CHIP_NOT_FOUND
 };
 
-enum CC1101_State {
-  STATE_IDLE = 0,         /* IDLE state */
-  STATE_RX,               /* Receive mode */
-  STATE_TX,               /* Transmit mode */
-  STATE_FSTXON,           /* Fast TX ready */
-  STATE_CALIBRATE,        /* Frequency synthesizer calibration is running */
-  STATE_SETTLING,         /* PLL is settling */
-  STATE_RXFIFO_OVERFLOW,  /* RX FIFO has overflowed */
-  STATE_TXFIFO_UNDERFLOW, /* TX FIFO has underflowed */
+enum State {
+  STATE_IDLE             = 0,  /* IDLE state */
+  STATE_RX               = 1,  /* Receive mode */
+  STATE_TX               = 2,  /* Transmit mode */
+  STATE_FSTXON           = 3,  /* Fast TX ready */
+  STATE_CALIBRATE        = 4,  /* Freq synthesizer calibration is running */
+  STATE_SETTLING         = 5,  /* PLL is settling */
+  STATE_RXFIFO_OVERFLOW  = 6,  /* RX FIFO has overflowed */
+  STATE_TXFIFO_UNDERFLOW = 7,  /* TX FIFO has underflowed */
 };
 
-enum CC1101_Modulation {
+enum Modulation {
   MOD_2FSK    = 0,
   MOD_GFSK    = 1,
   MOD_ASK_OOK = 3,
@@ -104,32 +108,63 @@ enum CC1101_Modulation {
   MOD_MSK     = 7
 };
 
-class CC1101 {
+enum SyncMode {
+  SYNC_MODE_NO_PREAMBLE    = 0,  /* No preamble/sync */
+  SYNC_MODE_15_16          = 1,  /* 15/16 sync word bits detected */
+  SYNC_MODE_16_16          = 2,  /* 16/16 sync word bits detected */
+  SYNC_MODE_30_32          = 3,  /* 30/32 sync word bits detected */
+  SYNC_MODE_NO_PREAMBLE_CS = 4,  /* No preamble/sync, CS above threshold */
+  SYNC_MODE_15_16_CS       = 5,  /* 15/16 + carrier-sense above threshold */
+  SYNC_MODE_16_16_CS       = 6,  /* 16/16 + carrier-sense above threshold */
+  SYNC_MODE_30_32_CS       = 7,  /* 30/32 + carrier-sense above threshold */
+};
+
+enum PacketLengthMode {
+  PKT_LEN_MODE_FIXED    = 0,  /* Length configured in PKTLEN register */
+  PKT_LEN_MODE_VARIABLE = 1,  /* Packet length put in the first byte */
+  PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
+};
+
+class Radio {
  public:
-  CC1101(byte cs, byte gd0 = PIN_UNUSED, byte gd2 = PIN_UNUSED)
+  Radio(byte cs, byte gd0 = PIN_UNUSED, byte gd2 = PIN_UNUSED)
     : cs(cs),
       gd0(gd0),
       gd2(gd2),
       spiSettings(CC1101_SPI_MAX_FREQ,
                   CC1101_SPI_DATA_ORDER,
                   CC1101_SPI_DATA_MODE) {}
-  Status begin();
 
-  byte getChipPartNumber();
-  byte getChipVersion();
+  Status begin(Modulation mod = MOD_ASK_OOK,
+               double freq = 433.5,
+               double drate = 4.0);
 
-  void setModulation(CC1101_Modulation mod);
+  uint8_t getChipPartNumber();
+  uint8_t getChipVersion();
+
+  void setModulation(Modulation mod);
   Status setFrequency(double freq);
   Status setDataRate(double drate);
 
-  void transmit(byte data);
+  void setOutputPower(int8_t power);
+
+  /* Enable CRC calculation in TX and CRC check in RX. */
+  void setCrc(bool enable);
+  Status setPreambleLength(uint8_t length);
+  void setSyncWord(uint8_t syncHi, uint8_t syncLo);
+  void setSyncMode(SyncMode mode);
+  void setPacketLengthMode(PacketLengthMode mode);
+
+  void transmit(uint8_t *data, size_t length);
+
  private:
   void chipSelect();
   void waitReady();
   void chipDeselect();
 
-  byte readReg(byte addr);
-  void readRegBurst(byte addr, byte *buff, size_t size);
+  uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
+  uint8_t readReg(uint8_t addr);
+  void readRegBurst(uint8_t addr, uint8_t *buff, size_t size);
 
   void writeRegField(uint8_t addr, uint8_t data, uint8_t hi, uint8_t lo);
   void writeReg(uint8_t addr, uint8_t data);
@@ -142,14 +177,20 @@ class CC1101 {
   void flushRxBuffer();
   void flushTxBuffer();
 
+  State getState();
   void saveStatus(byte status);
 
-  byte cs, gd0, gd2;
+  uint8_t cs, gd0, gd2;
   SPISettings spiSettings;
 
-  CC1101_State currentState = STATE_IDLE;
-  CC1101_Modulation mod = MOD_2FSK;
-  double freq;
-  double drate;
+  State currentState = STATE_IDLE;
+  Modulation mod = MOD_2FSK;
+  PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
+
+  double freq = 433.5;
+  double drate = 4.0;
+  int8_t power = 0;
 };
+
+}
 

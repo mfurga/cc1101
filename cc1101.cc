@@ -1,22 +1,36 @@
 #include "cc1101.h"
 
-Status CC1101::begin() {
+using namespace CC1101;
+
+Status Radio::begin(Modulation mod, double freq, double drate) {
+  Status status;
+
   pinMode(cs, OUTPUT);
   chipDeselect();
-
   SPI.begin();
 
   hardReset();
   delay(10);
 
-  byte partnum = getChipPartNumber();
-  byte version = getChipVersion();
-
+  uint8_t partnum = getChipPartNumber();
+  uint8_t version = getChipVersion();
   if (partnum != CC1101_PARTNUM || version != CC1101_VERSION) {
     return STATUS_ERROR_CHIP_NOT_FOUND;
   }
 
   setRegs();
+
+  setModulation(mod);
+
+  if ((status = setFrequency(freq)) != STATUS_OK) {
+    return status;
+  }
+
+  if ((status = setDataRate(drate)) != STATUS_OK) {
+    return status;
+  }
+
+  setOutputPower(0);
 
   sendCmd(CC1101_CMD_IDLE);
   flushRxBuffer();
@@ -25,20 +39,22 @@ Status CC1101::begin() {
   return STATUS_OK;
 }
 
-void CC1101::setRegs() {
+void Radio::setRegs() {
   writeReg(CC1101_REG_MCSM0, CC1101_DEFVAL_MCSM0);
   writeReg(CC1101_REG_PKTCTRL1, CC1101_DEFVAL_PKTCTRL1);
-  writeReg(CC1101_REG_PKTCTRL0, CC1101_DEFVAL_PKTCTRL0);
-  writeReg(CC1101_REG_FREND0, CC1101_DEFVAL_FREND0);
-  writeReg(CC1101_REG_PKTLEN, CC1101_DEFVAL_PKTLEN);
+
+  // Disable data whitening
+  writeRegField(CC1101_REG_PKTCTRL0, 0, 6, 6);
 }
 
-void CC1101::setModulation(CC1101_Modulation mod) {
+void Radio::setModulation(Modulation mod) {
   this->mod = mod;
   writeRegField(CC1101_REG_MDMCFG2, (uint8_t)mod, 6, 4);
+
+  setOutputPower(this->power);
 }
 
-Status CC1101::setFrequency(double freq) {
+Status Radio::setFrequency(double freq) {
   if (!((freq >= 300.0 && freq <= 348.0) ||
         (freq >= 387.0 && freq <= 464.0) ||
         (freq >= 779.0 && freq <= 928.0))) {
@@ -48,19 +64,17 @@ Status CC1101::setFrequency(double freq) {
   this->freq = freq;
   sendCmd(CC1101_CMD_IDLE);
 
-  uint32_t f = ((freq * 65536.0) / 26.0);
+  uint32_t f = ((freq * 65536.0) / CC1101_CRYSTAL_FREQ);
   writeReg(CC1101_REG_FREQ0, f & 0xff);
   writeReg(CC1101_REG_FREQ1, (f >> 8) & 0xff);
   writeReg(CC1101_REG_FREQ2, (f >> 16) & 0xff);
 
-  Serial.printf("FREQ0=%02x\r\n", readReg(CC1101_REG_FREQ0));
-  Serial.printf("FREQ1=%02x\r\n", readReg(CC1101_REG_FREQ1));
-  Serial.printf("FREQ2=%02x\r\n", readReg(CC1101_REG_FREQ2));
+  setOutputPower(this->power);
 
   return STATUS_OK;
 }
 
-Status CC1101::setDataRate(double drate) {
+Status Radio::setDataRate(double drate) {
 
   static const double range[][2] = {
     [MOD_2FSK]    = {  0.6, 500.0 },  /* 0.6 - 500 kBaud */
@@ -94,46 +108,163 @@ Status CC1101::setDataRate(double drate) {
   return STATUS_OK;
 }
 
-void CC1101::transmit(byte data) {
+void Radio::setOutputPower(int8_t power) {
+
+  static const uint8_t powers[][8] = {
+    [0 /* 315 Mhz */ ] = { 0x12, 0x0d, 0x1c, 0x34, 0x51, 0x85, 0xcb, 0xc2 },
+    [1 /* 433 Mhz */ ] = { 0x12, 0x0e, 0x1d, 0x34, 0x60, 0x84, 0xc8, 0xc0 },
+    [2 /* 868 Mhz */ ] = { 0x03, 0x0f, 0x1e, 0x27, 0x50, 0x81, 0xcb, 0xc2 },
+    [3 /* 915 MHz */ ] = { 0x03, 0x0e, 0x1e, 0x27, 0x8e, 0xcd, 0xc7, 0xc0 }
+  };
+
+  uint8_t powerIdx, freqIdx;
+
+  if (freq <= 348.0) {
+    freqIdx = 0;
+  } else if (freq <= 464.0) {
+    freqIdx = 1;
+  } else if (freq <= 855.0) {
+    freqIdx = 2;
+  } else {
+    freqIdx = 3;
+  }
+
+  if (power <= -30) {
+    powerIdx = 0;
+  } else if (power <= -20) {
+    powerIdx = 1;
+  } else if (power <= -15) {
+    powerIdx = 2;
+  } else if (power <= -10) {
+    powerIdx = 3;
+  } else if (power <= 0) {
+    powerIdx = 4;
+  } else if (power <= 5) {
+    powerIdx = 5;
+  } else if (power <= 7) {
+    powerIdx = 6;
+  } else {
+    powerIdx = 7;
+  }
+
+  this->power = power;
+
+  if (mod == MOD_ASK_OOK) {
+    /* No shaping. Use only the first 2 entries in the power table. */
+    uint8_t data[2] = { 0x00, powers[freqIdx][powerIdx] };
+    writeRegBurst(CC1101_REG_PATABLE, data, sizeof(data));
+    writeRegField(CC1101_REG_FREND0, 1, 2, 0);  /* PA_POWER = 1 */
+  } else {
+    writeReg(CC1101_REG_PATABLE, powers[freqIdx][powerIdx]);
+    writeRegField(CC1101_REG_FREND0, 0, 2, 0);  /* PA_POWER = 0 */
+  }
+}
+
+Status Radio::setPreambleLength(uint8_t length) {
+  uint8_t data;
+
+  switch (length) {
+    case 2:
+      data = 0;
+    break;
+    case 3:
+      data = 1;
+    break;
+    case 4:
+      data = 2;
+    break;
+    case 6:
+      data = 3;
+    break;
+    case 8:
+      data = 4;
+    break;
+    case 12:
+      data = 5;
+    break;
+    case 16:
+      data = 6;
+    break;
+    case 24:
+      data = 7;
+    break;
+    default:
+      return STATUS_INVALID_PARAM;
+  }
+
+  writeRegField(CC1101_REG_MDMCFG1, data, 6, 4);
+  return STATUS_OK;
+}
+
+void Radio::setSyncWord(uint8_t syncHi, uint8_t syncLo) {
+  writeReg(CC1101_REG_SYNC1, syncHi);
+  writeReg(CC1101_REG_SYNC0, syncLo);
+}
+
+void Radio::setSyncMode(SyncMode mode) {
+  writeRegField(CC1101_REG_MDMCFG2, (uint8_t)mode, 2, 0);
+}
+
+void Radio::setPacketLengthMode(PacketLengthMode mode) {
+  writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)mode, 1, 0);
+}
+
+void Radio::setCrc(bool enable) {
+  writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
+}
+
+void Radio::transmit(uint8_t *data, size_t length) {
   byte txFifoBytes;
+
+  if (length > 255) {
+    // TODO: Error
+    return;
+  }
 
   sendCmd(CC1101_CMD_IDLE);
   flushTxBuffer();
 
-  writeReg(0x00, 0x06);
-
-  byte paValues[2] = { 0x00, 0xc0 };
-  writeRegBurst(CC1101_REG_PATABLE, paValues, 2);
-
-  txFifoBytes = readReg(CC1101_REG_TXBYTES) & ~(1 << 7);
-
-  byte sent[16];
-  for (int i = 0; i < 16; i++) {
-    sent[i] = data;
+  switch (pktLenMode) {
+    case PKT_LEN_MODE_FIXED:
+      writeReg(CC1101_REG_PKTLEN, (uint8_t)length);
+    break;
   }
 
-  writeRegBurst(CC1101_REG_FIFO, sent, 16);
+  writeRegBurst(CC1101_REG_FIFO, data, (uint8_t)length);
+
+  delayMicroseconds(100);
+
   sendCmd(CC1101_CMD_TX);
 
-  Serial.printf("State before: %d\r\n", currentState);
+  //Serial.printf("State: %d\r\n", currentState);
 
+  delay(300);
+
+/*
   do {
     txFifoBytes = readReg(CC1101_REG_TXBYTES) & ~(1 << 7);
     //delayMicroseconds(300);
   } while (txFifoBytes > 0);
 
+  while (getState() != STATE_IDLE) {
+    Serial.printf("State: %d\r\n", currentState);
+    delay(10);
+  }
+*/
 
-  Serial.printf("State after: %d\r\n", currentState);
-
-  sendCmd(CC1101_CMD_IDLE);
-  flushTxBuffer();
+  //Serial.printf("State after: %d\r\n", currentState);
 }
 
-void CC1101::saveStatus(byte status) {
-  currentState = (CC1101_State)((status >> 4) & 0b111);
+State Radio::getState() {
+  sendCmd(CC1101_CMD_NOP);
+  return currentState;
 }
 
-void CC1101::hardReset() {
+void Radio::saveStatus(byte status) {
+  currentState = (State)((status >> 4) & 0b111);
+}
+
+void Radio::hardReset() {
   SPI.beginTransaction(spiSettings);
 
   chipDeselect();
@@ -154,29 +285,33 @@ void CC1101::hardReset() {
   SPI.endTransaction();
 }
 
-void CC1101::flushRxBuffer() {
+void Radio::flushRxBuffer() {
   if (currentState != STATE_IDLE && currentState != STATE_RXFIFO_OVERFLOW) {
     return;
   }
   sendCmd(CC1101_CMD_FRX);
 }
 
-void CC1101::flushTxBuffer() {
+void Radio::flushTxBuffer() {
   if (currentState != STATE_IDLE && currentState != STATE_TXFIFO_UNDERFLOW) {
     return;
   }
   sendCmd(CC1101_CMD_FTX);
 }
 
-byte CC1101::getChipPartNumber() {
+uint8_t Radio::getChipPartNumber() {
   return readReg(CC1101_REG_PARTNUM);
 }
 
-byte CC1101::getChipVersion() {
+uint8_t Radio::getChipVersion() {
   return readReg(CC1101_REG_VERSION);
 }
 
-byte CC1101::readReg(byte addr) {
+uint8_t Radio::readRegField(uint8_t addr, uint8_t hi, uint8_t lo) {
+  return (readReg(addr) >> lo) & ((1 << (hi - lo + 1)) - 1);
+}
+
+uint8_t Radio::readReg(uint8_t addr) {
   byte header = CC1101_READ | (addr & 0b111111);
 
   if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
@@ -196,7 +331,7 @@ byte CC1101::readReg(byte addr) {
   return data;
 }
 
-void CC1101::readRegBurst(byte addr, byte *buff, size_t size) {
+void Radio::readRegBurst(uint8_t addr, uint8_t *buff, size_t size) {
   byte header = CC1101_READ | CC1101_BURST | (addr & 0b111111);
 
   if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
@@ -217,7 +352,7 @@ void CC1101::readRegBurst(byte addr, byte *buff, size_t size) {
   SPI.endTransaction();
 }
 
-void CC1101::writeRegField(uint8_t addr, uint8_t data, uint8_t hi,
+void Radio::writeRegField(uint8_t addr, uint8_t data, uint8_t hi,
                            uint8_t lo) {
   data <<= lo;
   uint8_t current = readReg(addr);
@@ -226,7 +361,7 @@ void CC1101::writeRegField(uint8_t addr, uint8_t data, uint8_t hi,
   writeReg(addr, data);
 }
 
-void CC1101::writeReg(uint8_t addr, uint8_t data) {
+void Radio::writeReg(uint8_t addr, uint8_t data) {
   if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
     /* Status registers are read-only. */
     return;
@@ -245,7 +380,7 @@ void CC1101::writeReg(uint8_t addr, uint8_t data) {
   SPI.endTransaction();
 }
 
-void CC1101::writeRegBurst(uint8_t addr, uint8_t *data, size_t size) {
+void Radio::writeRegBurst(uint8_t addr, uint8_t *data, size_t size) {
   if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
     /* Status registers are read-only. */
     return;
@@ -266,10 +401,8 @@ void CC1101::writeRegBurst(uint8_t addr, uint8_t *data, size_t size) {
   SPI.endTransaction();
 }
 
-void CC1101::sendCmd(byte addr) {
+void Radio::sendCmd(byte addr) {
   byte header = CC1101_WRITE | (addr & 0b111111);
-
-  Serial.printf("SPI CMD: %02x\r\n", header);
 
   SPI.beginTransaction(spiSettings);
   chipSelect();
@@ -281,15 +414,15 @@ void CC1101::sendCmd(byte addr) {
   SPI.endTransaction();
 }
 
-void CC1101::chipSelect() {
+void Radio::chipSelect() {
   digitalWrite(cs, LOW);
 }
 
-void CC1101::chipDeselect() {
+void Radio::chipDeselect() {
   digitalWrite(cs, HIGH);
 }
 
-void CC1101::waitReady() {
+void Radio::waitReady() {
   while (digitalRead(MISO))
     ;
 }
