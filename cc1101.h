@@ -9,6 +9,9 @@
 #define CC1101_SPI_DATA_ORDER  MSBFIRST
 #define CC1101_SPI_DATA_MODE   SPI_MODE0  /* clk low, leading edge */
 
+#define CC1101_CRYSTAL_FREQ    26         /* 26 MHz */
+
+
 #define CC1101_WRITE           0x00
 #define CC1101_READ            0x80
 #define CC1101_BURST           0x40
@@ -26,10 +29,14 @@
 #define CC1101_CMD_NOP         0x3d  /* No operation */
 
 /* Registers */
+#define CC1101_REG_PKTLEN      0x06
+#define CC1101_REG_PKTCTRL1    0x07
 #define CC1101_REG_PKTCTRL0    0x08  /* Packet Automation Control */
 
 #define CC1101_REG_FREQ2       0x0d
 #define CC1101_REG_FREQ1       0x0e
+#define CC1101_REG_MDMCFG4     0x10
+#define CC1101_REG_MDMCFG3     0x11
 #define CC1101_REG_MDMCFG2     0x12  /* Modem Configuration */
 #define CC1101_REG_FREQ0       0x0f
 
@@ -63,8 +70,13 @@
 
 /* Disable CRC, fixed packet length mode */
 #define CC1101_DEFVAL_PKTCTRL0 0b00000000
+#define CC1101_DEFVAL_PKTCTRL1 0b00000100
 
 #define CC1101_DEFVAL_MDMCFG2  0b00110000
+
+#define CC1101_DEFVAL_FREND0   0b00010001
+
+#define CC1101_DEFVAL_PKTLEN   16
 
 enum Status {
   STATUS_OK = 0,
@@ -82,8 +94,14 @@ enum CC1101_State {
   STATE_SETTLING,         /* PLL is settling */
   STATE_RXFIFO_OVERFLOW,  /* RX FIFO has overflowed */
   STATE_TXFIFO_UNDERFLOW, /* TX FIFO has underflowed */
+};
 
-  STATE_UNKNOWN           /* Unknown state */
+enum CC1101_Modulation {
+  MOD_2FSK    = 0,
+  MOD_GFSK    = 1,
+  MOD_ASK_OOK = 3,
+  MOD_4FSK    = 4,
+  MOD_MSK     = 7
 };
 
 class CC1101 {
@@ -100,21 +118,24 @@ class CC1101 {
   byte getChipPartNumber();
   byte getChipVersion();
 
-  void setFrequency(double freq);
+  void setModulation(CC1101_Modulation mod);
+  Status setFrequency(double freq);
+  Status setDataRate(double drate);
 
   void transmit(byte data);
-  void debug();
-
  private:
   void chipSelect();
   void waitReady();
   void chipDeselect();
 
   byte readReg(byte addr);
-  void sendCmd(byte addr);
+  void readRegBurst(byte addr, byte *buff, size_t size);
 
-  void writeReg(byte addr, byte data);
-  void writeRegBurst(byte addr, byte *data, size_t size);
+  void writeRegField(uint8_t addr, uint8_t data, uint8_t hi, uint8_t lo);
+  void writeReg(uint8_t addr, uint8_t data);
+  void writeRegBurst(uint8_t addr, uint8_t *data, size_t size);
+
+  void sendCmd(byte addr);
 
   void setRegs();
   void hardReset();
@@ -126,6 +147,9 @@ class CC1101 {
   byte cs, gd0, gd2;
   SPISettings spiSettings;
 
-  CC1101_State currentState = STATE_UNKNOWN;
+  CC1101_State currentState = STATE_IDLE;
+  CC1101_Modulation mod = MOD_2FSK;
+  double freq;
+  double drate;
 };
 
