@@ -3,52 +3,53 @@
 #include <Arduino.h>
 #include <SPI.h>
 
-#define PIN_UNUSED 0xff
+#define PIN_UNUSED                0xff
 
-#define CC1101_SPI_MAX_FREQ    4500000    /* 6.5 MHz */
-#define CC1101_SPI_DATA_ORDER  MSBFIRST
-#define CC1101_SPI_DATA_MODE   SPI_MODE0  /* clk low, leading edge */
+#define CC1101_SPI_MAX_FREQ       6500000    /* 6.5 MHz */
+#define CC1101_SPI_DATA_ORDER     MSBFIRST
+#define CC1101_SPI_DATA_MODE      SPI_MODE0  /* clk low, leading edge */
 
-#define CC1101_CRYSTAL_FREQ    26         /* 26 MHz */
+#define CC1101_FIFO_SIZE          64    /* 64 B */
+#define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
 
-#define CC1101_WRITE           0x00
-#define CC1101_READ            0x80
-#define CC1101_BURST           0x40
+#define CC1101_WRITE              0x00
+#define CC1101_READ               0x80
+#define CC1101_BURST              0x40
 
-#define CC1101_PARTNUM         0x00
-#define CC1101_VERSION         0x14
+#define CC1101_PARTNUM            0x00
+#define CC1101_VERSION            0x14
 
 /* Command strobes */
-#define CC1101_CMD_RES         0x30  /* Reset chip */
-#define CC1101_CMD_RX          0x34  /* Enable RX */
-#define CC1101_CMD_TX          0x35  /* Enable TX */
-#define CC1101_CMD_IDLE        0x36  /* Enable IDLE */
-#define CC1101_CMD_FRX         0x3a  /* Flush the RX FIFO buffer */
-#define CC1101_CMD_FTX         0x3b  /* Flush the TX FIFO buffer */
-#define CC1101_CMD_NOP         0x3d  /* No operation */
+#define CC1101_CMD_RES            0x30  /* Reset chip */
+#define CC1101_CMD_RX             0x34  /* Enable RX */
+#define CC1101_CMD_TX             0x35  /* Enable TX */
+#define CC1101_CMD_IDLE           0x36  /* Enable IDLE */
+#define CC1101_CMD_FRX            0x3a  /* Flush the RX FIFO buffer */
+#define CC1101_CMD_FTX            0x3b  /* Flush the TX FIFO buffer */
+#define CC1101_CMD_NOP            0x3d  /* No operation */
 
 /* Registers */
-#define CC1101_REG_SYNC1       0x04  /* Sync Word, High Byte */
-#define CC1101_REG_SYNC0       0x05  /* Sync Word, Low Byte */
-#define CC1101_REG_PKTLEN      0x06
-#define CC1101_REG_PKTCTRL1    0x07
-#define CC1101_REG_PKTCTRL0    0x08  /* Packet Automation Control */
+#define CC1101_REG_SYNC1          0x04  /* Sync Word, High Byte */
+#define CC1101_REG_SYNC0          0x05  /* Sync Word, Low Byte */
+#define CC1101_REG_PKTLEN         0x06
+#define CC1101_REG_PKTCTRL1       0x07
+#define CC1101_REG_PKTCTRL0       0x08  /* Packet Automation Control */
 
-#define CC1101_REG_FREQ2       0x0d
-#define CC1101_REG_FREQ1       0x0e
-#define CC1101_REG_MDMCFG4     0x10
-#define CC1101_REG_MDMCFG3     0x11
-#define CC1101_REG_MDMCFG2     0x12  /* Modem Configuration */
-#define CC1101_REG_MDMCFG1     0x13
-#define CC1101_REG_FREQ0       0x0f
+#define CC1101_REG_FREQ2          0x0d
+#define CC1101_REG_FREQ1          0x0e
+#define CC1101_REG_MDMCFG4        0x10
+#define CC1101_REG_MDMCFG3        0x11
+#define CC1101_REG_MDMCFG2        0x12  /* Modem Configuration */
+#define CC1101_REG_MDMCFG1        0x13
+#define CC1101_REG_FREQ0          0x0f
 
-#define CC1101_REG_MCSM2       0x16
-#define CC1101_REG_MCSM1       0x17
-#define CC1101_REG_MCSM0       0x18
-#define CC1101_REG_FREND0      0x22  /* Front End TX Configuration */
+#define CC1101_REG_MCSM2          0x16
+#define CC1101_REG_MCSM1          0x17
+#define CC1101_REG_MCSM0          0x18
+#define CC1101_REG_FREND0         0x22  /* Front End TX Configuration */
 
-#define CC1101_REG_PATABLE     0x3e
-#define CC1101_REG_FIFO        0x3f
+#define CC1101_REG_PATABLE        0x3e
+#define CC1101_REG_FIFO           0x3f
 
 /* Status registers */
 #define CC1101_REG_PARTNUM        0x30
@@ -57,34 +58,12 @@
 #define CC1101_REG_RXBYTES        0x3b
 #define CC1101_REG_RCCTRL0_STATUS 0x3d
 
-/* Default registers values */
-
-/*
-  7:6 - Not used.
-  5:4 - FS_AUTOCAL[1:0] - Automatically calibrate when going to RX or TX
-                          or back to IDLE
-    00 - Never (manually calibrate using SCAL strobe)
-    01 - When going from IDLE to RX or TX (or FSTXON)
-    10 - When going from RX or TX back to IDLE automatically
-    11 - Every 4th time when going from RX or TX to IDLE automatically
-*/
-#define CC1101_DEFVAL_MCSM0    0b00010100
-
-/* Disable CRC, fixed packet length mode */
-#define CC1101_DEFVAL_PKTCTRL0 0b00000000
-#define CC1101_DEFVAL_PKTCTRL1 0b00000100
-
-#define CC1101_DEFVAL_MDMCFG2  0b00110000
-
-#define CC1101_DEFVAL_FREND0   0b00010001
-
-#define CC1101_DEFVAL_PKTLEN   16
-
 namespace CC1101 {
 
 enum Status {
   STATUS_OK = 0,
 
+  STATUS_PACKET_TOO_BIG,
   STATUS_INVALID_PARAM,
   STATUS_ERROR_CHIP_NOT_FOUND
 };
@@ -122,7 +101,14 @@ enum SyncMode {
 enum PacketLengthMode {
   PKT_LEN_MODE_FIXED    = 0,  /* Length configured in PKTLEN register */
   PKT_LEN_MODE_VARIABLE = 1,  /* Packet length put in the first byte */
-  PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
+  // TODO: PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
+};
+
+enum AddressFilteringMode {
+  ADDR_FILTER_MODE_NONE = 0,          /* No address check */
+  ADDR_FILTER_MODE_CHECK = 1,         /* Address check, no broadcast */
+  ADDR_FILTER_MODE_CHECK_BC_0 = 2,    /* Address check, 0 broadcast */
+  ADDR_FILTER_MODE_CHECK_BC_0_255 = 3 /* Address check, 0 and 255 broadcast */
 };
 
 class Radio {
@@ -150,12 +136,14 @@ class Radio {
 
   /* Enable CRC calculation in TX and CRC check in RX. */
   void setCrc(bool enable);
+  void setAddressFilteringMode(AddressFilteringMode mode);
+  void setPacketLengthMode(PacketLengthMode mode);
+  void setSyncMode(SyncMode mode);
   Status setPreambleLength(uint8_t length);
   void setSyncWord(uint8_t syncHi, uint8_t syncLo);
-  void setSyncMode(SyncMode mode);
-  void setPacketLengthMode(PacketLengthMode mode);
 
-  void transmit(uint8_t *data, size_t length);
+  Status transmit(uint8_t *data, size_t length, uint8_t addr = 0);
+  Status receive(uint8_t *data, size_t length, uint8_t addr = 0);
 
  private:
   void chipSelect();
@@ -186,6 +174,7 @@ class Radio {
   State currentState = STATE_IDLE;
   Modulation mod = MOD_2FSK;
   PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
+  AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_NONE;
 
   double freq = 433.5;
   double drate = 4.0;

@@ -40,10 +40,10 @@ Status Radio::begin(Modulation mod, double freq, double drate) {
 }
 
 void Radio::setRegs() {
-  writeReg(CC1101_REG_MCSM0, CC1101_DEFVAL_MCSM0);
-  writeReg(CC1101_REG_PKTCTRL1, CC1101_DEFVAL_PKTCTRL1);
+  /* Automatically calibrate when going from IDLE to RX or TX. */
+  writeRegField(CC1101_REG_MCSM0, 1, 5, 4);
 
-  // Disable data whitening
+  /* Disable data whitening. */
   writeRegField(CC1101_REG_PKTCTRL0, 0, 6, 6);
 }
 
@@ -164,28 +164,28 @@ Status Radio::setPreambleLength(uint8_t length) {
   uint8_t data;
 
   switch (length) {
-    case 2:
+    case 16:
       data = 0;
     break;
-    case 3:
+    case 24:
       data = 1;
     break;
-    case 4:
+    case 36:
       data = 2;
     break;
-    case 6:
+    case 48:
       data = 3;
     break;
-    case 8:
+    case 64:
       data = 4;
     break;
-    case 12:
+    case 96:
       data = 5;
     break;
-    case 16:
+    case 128:
       data = 6;
     break;
-    case 24:
+    case 192:
       data = 7;
     break;
     default:
@@ -209,16 +209,19 @@ void Radio::setPacketLengthMode(PacketLengthMode mode) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)mode, 1, 0);
 }
 
+void Radio::setAddressFilteringMode(AddressFilteringMode mode) {
+  writeRegField(CC1101_REG_PKTCTRL1, (uint8_t)mode, 1, 0);
+}
+
 void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
 }
 
-void Radio::transmit(uint8_t *data, size_t length) {
-  byte txFifoBytes;
+Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
+  uint8_t bytesSent = 0;
 
   if (length > 255) {
-    // TODO: Error
-    return;
+    return STATUS_PACKET_TOO_BIG;
   }
 
   sendCmd(CC1101_CMD_IDLE);
@@ -228,31 +231,43 @@ void Radio::transmit(uint8_t *data, size_t length) {
     case PKT_LEN_MODE_FIXED:
       writeReg(CC1101_REG_PKTLEN, (uint8_t)length);
     break;
+    case PKT_LEN_MODE_VARIABLE:
+      writeReg(CC1101_REG_FIFO, (uint8_t)length);
+      bytesSent++;
+    break;
   }
 
-  writeRegBurst(CC1101_REG_FIFO, data, (uint8_t)length);
+  if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
+    writeReg(CC1101_REG_FIFO, addr);
+    bytesSent++;
+  }
 
-  delayMicroseconds(100);
+  uint8_t l = min((uint8_t)length, CC1101_FIFO_SIZE - bytesSent);
+  writeRegBurst(CC1101_REG_FIFO, data, l);
+  bytesSent += l;
 
   sendCmd(CC1101_CMD_TX);
 
-  //Serial.printf("State: %d\r\n", currentState);
+  while (bytesSent < length) {
+    uint8_t bytesInFifo = readReg(CC1101_REG_TXBYTES);
 
-  delay(300);
-
-/*
-  do {
-    txFifoBytes = readReg(CC1101_REG_TXBYTES) & ~(1 << 7);
-    //delayMicroseconds(300);
-  } while (txFifoBytes > 0);
+    if (bytesInFifo < CC1101_FIFO_SIZE) {
+      uint8_t bytesFree = min((uint8_t)length - bytesSent,
+                              CC1101_FIFO_SIZE - bytesInFifo);
+      writeRegBurst(CC1101_REG_FIFO, data + bytesSent, bytesFree);
+      bytesSent += bytesFree;
+    }
+  }
 
   while (getState() != STATE_IDLE) {
-    Serial.printf("State: %d\r\n", currentState);
-    delay(10);
+    delayMicroseconds(100);
   }
-*/
 
-  //Serial.printf("State after: %d\r\n", currentState);
+  return STATUS_OK;
+}
+
+Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
+
 }
 
 State Radio::getState() {
