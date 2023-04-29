@@ -11,6 +11,7 @@
 
 #define CC1101_FIFO_SIZE          64    /* 64 B */
 #define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
+#define CC1101_PKT_MAX_SIZE       61    /* 61 B, 1B for address, 2B for status */
 
 #define CC1101_WRITE              0x00
 #define CC1101_READ               0x80
@@ -63,7 +64,7 @@ namespace CC1101 {
 enum Status {
   STATUS_OK = 0,
 
-  STATUS_PACKET_TOO_BIG,
+  STATUS_LENGTH_TOO_BIG,
   STATUS_INVALID_PARAM,
   STATUS_ERROR_CHIP_NOT_FOUND
 };
@@ -131,13 +132,14 @@ class Radio {
   void setModulation(Modulation mod);
   Status setFrequency(double freq);
   Status setDataRate(double drate);
+  Status setRxBandwidth(double bw);
 
   void setOutputPower(int8_t power);
 
   /* Enable CRC calculation in TX and CRC check in RX. */
   void setCrc(bool enable);
   void setAddressFilteringMode(AddressFilteringMode mode);
-  void setPacketLengthMode(PacketLengthMode mode);
+  void setPacketLengthMode(PacketLengthMode mode, uint8_t length = 255);
   void setSyncMode(SyncMode mode);
   Status setPreambleLength(uint8_t length);
   void setSyncWord(uint8_t syncHi, uint8_t syncLo);
