@@ -52,6 +52,9 @@ void Radio::setRegs() {
     CRC OK.
   */
   writeRegField(CC1101_REG_PKTCTRL1, 0, 2, 2);
+
+  /* Enable Manchester encoding */
+  //writeRegField(CC1101_REG_MDMCFG2, 1, 3, 3);
 }
 
 void Radio::setModulation(Modulation mod) {
@@ -77,6 +80,41 @@ Status Radio::setFrequency(double freq) {
   writeReg(CC1101_REG_FREQ2, (f >> 16) & 0xff);
 
   setOutputPower(this->power);
+
+  return STATUS_OK;
+}
+
+Status Radio::setChannel(uint8_t ch) {
+  writeReg(CC1101_REG_CHANNR, ch);
+  return STATUS_OK;
+}
+
+Status Radio::setChannelSpacing(double sp) {
+  double xosc = CC1101_CRYSTAL_FREQ * 1000;
+
+  int spMin = (xosc / (1 << 18)) * (256 + 0) * 1;
+  int spMax = (xosc / (1 << 18)) * (256 + 255) * 8;
+
+  if (sp < spMin || sp > spMax) {
+    return STATUS_INVALID_PARAM;
+  }
+
+  uint8_t bestE = 0, bestM = 0;
+  double diff = spMax;
+
+  for (uint8_t e = 0; e <= 3; e++) {
+    for (uint16_t m = 0; m <= 255; m++) {
+      double t = (xosc / (1 << 18)) * (256 + m) * (1 << e);
+      if (fabs(sp - t) < diff) {
+        diff = fabs(sp - t);
+        bestE = e;
+        bestM = m;
+      }
+    }
+  }
+
+  writeReg(CC1101_REG_MDMCFG0, bestM);
+  writeRegField(CC1101_REG_MDMCFG1, bestE, 1, 0);
 
   return STATUS_OK;
 }
@@ -312,7 +350,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   }
 
   while (getState() != STATE_IDLE) {
-    delayMicroseconds(100);
+    delayMicroseconds(10);
   }
 
   return STATUS_OK;

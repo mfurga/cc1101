@@ -36,12 +36,14 @@
 #define CC1101_REG_PKTCTRL1       0x07
 #define CC1101_REG_PKTCTRL0       0x08  /* Packet Automation Control */
 
+#define CC1101_REG_CHANNR         0x0a
 #define CC1101_REG_FREQ2          0x0d
 #define CC1101_REG_FREQ1          0x0e
 #define CC1101_REG_MDMCFG4        0x10
 #define CC1101_REG_MDMCFG3        0x11
 #define CC1101_REG_MDMCFG2        0x12  /* Modem Configuration */
 #define CC1101_REG_MDMCFG1        0x13
+#define CC1101_REG_MDMCFG0        0x14
 #define CC1101_REG_FREQ0          0x0f
 
 #define CC1101_REG_MCSM2          0x16
@@ -131,6 +133,8 @@ class Radio {
 
   void setModulation(Modulation mod);
   Status setFrequency(double freq);
+  Status setChannel(uint8_t ch);
+  Status setChannelSpacing(double sp);
   Status setDataRate(double drate);
   Status setRxBandwidth(double bw);
 
