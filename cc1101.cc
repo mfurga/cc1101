@@ -6,6 +6,15 @@ Status Radio::begin(Modulation mod, double freq, double drate) {
   Status status;
 
   pinMode(cs, OUTPUT);
+
+  if (gd0 != PIN_UNUSED) {
+    pinMode(gd0, INPUT);
+  }
+
+  if (gd2 != PIN_UNUSED) {
+    pinMode(gd2, INPUT);
+  }
+
   chipDeselect();
   SPI.begin();
 
@@ -350,7 +359,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   }
 
   while (getState() != STATE_IDLE) {
-    delayMicroseconds(10);
+    delayMicroseconds(50);
   }
 
   return STATUS_OK;
@@ -361,12 +370,14 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
-  sendCmd(CC1101_CMD_IDLE);
-  flushRxBuffer();
+  if (!async) {
+    sendCmd(CC1101_CMD_IDLE);
+    flushRxBuffer();
 
-  sendCmd(CC1101_CMD_RX);
-  while (getState() != STATE_RX) {
-    delayMicroseconds(800);
+    sendCmd(CC1101_CMD_RX);
+    while (getState() != STATE_RX) {
+      delayMicroseconds(800);
+    }
   }
 
   uint8_t pktLength = 0;
@@ -394,7 +405,7 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   }
 
   if (addrFilterMode == ADDR_FILTER_MODE_CHECK) {
-    Serial.println("ADDR CHECK");
+    // TODO: To check.
     (void)readReg(CC1101_REG_FIFO);
   }
 
@@ -430,9 +441,33 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
     delayMicroseconds(100);
   }
 
-  Serial.printf("state: %d\r\n", currentState);
+  if (async) {
+    flushRxBuffer();
+    sendCmd(CC1101_CMD_RX);
+    while (getState() != STATE_RX) {
+      delayMicroseconds(800);
+    }
+  }
 
   return STATUS_OK;
+}
+
+void Radio::receiveAsync(void (*func)(void)) {
+  /*
+    Associated to the RX FIFO: Asserts when RX FIFO is filled at or above
+    the RX FIFO threshold or the end of packet is reached. De-asserts when
+    the RX FIFO is empty.
+  */
+  writeRegField(CC1101_REG_IOCFG0, 1, 5, 0);
+
+  flushRxBuffer();
+  sendCmd(CC1101_CMD_RX);
+  while (getState() != STATE_RX) {
+    delayMicroseconds(800);
+  }
+
+  async = true;
+  attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
 }
 
 State Radio::getState() {

@@ -30,6 +30,7 @@
 #define CC1101_CMD_NOP            0x3d  /* No operation */
 
 /* Registers */
+#define CC1101_REG_IOCFG0         0x02
 #define CC1101_REG_SYNC1          0x04  /* Sync Word, High Byte */
 #define CC1101_REG_SYNC0          0x05  /* Sync Word, Low Byte */
 #define CC1101_REG_PKTLEN         0x06
@@ -150,6 +151,7 @@ class Radio {
 
   Status transmit(uint8_t *data, size_t length, uint8_t addr = 0);
   Status receive(uint8_t *data, size_t length, uint8_t addr = 0);
+  void receiveAsync(void (*func)(void));
 
  private:
   void chipSelect();
@@ -181,6 +183,7 @@ class Radio {
   Modulation mod = MOD_2FSK;
   PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
   AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_NONE;
+  bool async = false;
 
   double freq = 433.5;
   double drate = 4.0;
