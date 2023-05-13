@@ -67,6 +67,7 @@ namespace CC1101 {
 enum Status {
   STATUS_OK = 0,
 
+  STATUS_LENGTH_TOO_SMALL,
   STATUS_LENGTH_TOO_BIG,
   STATUS_INVALID_PARAM,
   STATUS_ERROR_CHIP_NOT_FOUND
@@ -147,11 +148,11 @@ class Radio {
   void setPacketLengthMode(PacketLengthMode mode, uint8_t length = 255);
   void setSyncMode(SyncMode mode);
   Status setPreambleLength(uint8_t length);
-  void setSyncWord(uint8_t syncHi, uint8_t syncLo);
+  void setSyncWord(uint16_t sync);
 
   Status transmit(uint8_t *data, size_t length, uint8_t addr = 0);
   Status receive(uint8_t *data, size_t length, uint8_t addr = 0);
-  void receiveAsync(void (*func)(void));
+  void receiveCallback(void (*func)(void));
 
  private:
   void chipSelect();
@@ -174,6 +175,7 @@ class Radio {
   void flushTxBuffer();
 
   State getState();
+  void setState(State);
   void saveStatus(byte status);
 
   uint8_t cs, gd0, gd2;
@@ -183,7 +185,7 @@ class Radio {
   Modulation mod = MOD_2FSK;
   PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
   AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_NONE;
-  bool async = false;
+  bool recvCallback = false;
 
   double freq = 433.5;
   double drate = 4.0;

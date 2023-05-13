@@ -41,7 +41,7 @@ Status Radio::begin(Modulation mod, double freq, double drate) {
 
   setOutputPower(0);
 
-  sendCmd(CC1101_CMD_IDLE);
+  setState(STATE_IDLE);
   flushRxBuffer();
   flushTxBuffer();
 
@@ -81,7 +81,7 @@ Status Radio::setFrequency(double freq) {
   }
 
   this->freq = freq;
-  sendCmd(CC1101_CMD_IDLE);
+  setState(STATE_IDLE);
 
   uint32_t f = ((freq * 65536.0) / CC1101_CRYSTAL_FREQ);
   writeReg(CC1101_REG_FREQ0, f & 0xff);
@@ -291,9 +291,9 @@ Status Radio::setPreambleLength(uint8_t length) {
   return STATUS_OK;
 }
 
-void Radio::setSyncWord(uint8_t syncHi, uint8_t syncLo) {
-  writeReg(CC1101_REG_SYNC1, syncHi);
-  writeReg(CC1101_REG_SYNC0, syncLo);
+void Radio::setSyncWord(uint16_t sync) {
+  writeReg(CC1101_REG_SYNC1, sync >> 8);
+  writeReg(CC1101_REG_SYNC0, sync & 0xff);
 }
 
 void Radio::setSyncMode(SyncMode mode) {
@@ -302,8 +302,15 @@ void Radio::setSyncMode(SyncMode mode) {
 
 void Radio::setPacketLengthMode(PacketLengthMode mode, uint8_t length) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)mode, 1, 0);
-  if (mode == PKT_LEN_MODE_FIXED) {
-    writeReg(CC1101_REG_PKTLEN, length);
+
+  switch (mode) {
+    case PKT_LEN_MODE_FIXED:
+      writeReg(CC1101_REG_PKTLEN, length);
+    break;
+    case PKT_LEN_MODE_VARIABLE:
+      /* Indicates the maximum packet length allowed. */
+      writeReg(CC1101_REG_PKTLEN, length);
+    break;
   }
 }
 
@@ -315,7 +322,6 @@ void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
 }
 
-
 Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   uint8_t bytesSent = 0;
 
@@ -323,7 +329,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
-  sendCmd(CC1101_CMD_IDLE);
+  setState(STATE_IDLE);
   flushTxBuffer();
 
   switch (pktLenMode) {
@@ -345,7 +351,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   writeRegBurst(CC1101_REG_FIFO, data, l);
   bytesSent += l;
 
-  sendCmd(CC1101_CMD_TX);
+  setState(STATE_TX);
 
   while (bytesSent < length) {
     uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
@@ -370,27 +376,20 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
-  if (!async) {
-    sendCmd(CC1101_CMD_IDLE);
-    flushRxBuffer();
+  Serial.println("RECV START");
 
-    sendCmd(CC1101_CMD_RX);
-    while (getState() != STATE_RX) {
-      delayMicroseconds(800);
-    }
+  if (!recvCallback) {
+    setState(STATE_IDLE);
+    flushRxBuffer();
+    setState(STATE_RX);
   }
 
   uint8_t pktLength = 0;
   switch (pktLenMode) {
     case PKT_LEN_MODE_FIXED:
-      Serial.println("FIXED");
       pktLength = readReg(CC1101_REG_PKTLEN);
     break;
     case PKT_LEN_MODE_VARIABLE:
-      Serial.println("VARIABLE");
-      /* Indicates the maximum packet length allowed. */
-      writeReg(CC1101_REG_PKTLEN, (uint8_t)length);
-
       /* Wait for length byte. */
       while (pktLength == 0) {
         pktLength = readReg(CC1101_REG_FIFO);
@@ -399,9 +398,7 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   }
 
   if (pktLength > length) {
-    Serial.println("ERROR LEN TO SMALL");
-    // TODO: Error.
-    for (;;);
+    return STATUS_LENGTH_TOO_SMALL;
   }
 
   if (addrFilterMode == ADDR_FILTER_MODE_CHECK) {
@@ -438,21 +435,21 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   }
 
   while (getState() != STATE_IDLE) {
-    delayMicroseconds(100);
+    delayMicroseconds(50);
   }
 
-  if (async) {
+  if (recvCallback) {
+    Serial.println("FLUSH");
     flushRxBuffer();
-    sendCmd(CC1101_CMD_RX);
-    while (getState() != STATE_RX) {
-      delayMicroseconds(800);
-    }
+    setState(STATE_RX);
   }
+
+  Serial.println("END RECV");
 
   return STATUS_OK;
 }
 
-void Radio::receiveAsync(void (*func)(void)) {
+void Radio::receiveCallback(void (*func)(void)) {
   /*
     Associated to the RX FIFO: Asserts when RX FIFO is filled at or above
     the RX FIFO threshold or the end of packet is reached. De-asserts when
@@ -460,19 +457,38 @@ void Radio::receiveAsync(void (*func)(void)) {
   */
   writeRegField(CC1101_REG_IOCFG0, 1, 5, 0);
 
+  // TODO: Move to other method.
   flushRxBuffer();
-  sendCmd(CC1101_CMD_RX);
-  while (getState() != STATE_RX) {
-    delayMicroseconds(800);
-  }
+  setState(STATE_RX);
 
-  async = true;
+  recvCallback = true;
   attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
 }
 
 State Radio::getState() {
   sendCmd(CC1101_CMD_NOP);
   return currentState;
+}
+
+void Radio::setState(State state) {
+  switch (state) {
+    case STATE_IDLE:
+      sendCmd(CC1101_CMD_IDLE);
+    break;
+    case STATE_TX:
+      sendCmd(CC1101_CMD_TX);
+    break;
+    case STATE_RX:
+      sendCmd(CC1101_CMD_RX);
+    break;
+    default:
+      /* Not supported. */
+      return;
+  }
+
+  while (getState() != state) {
+    delayMicroseconds(100);
+  }
 }
 
 void Radio::saveStatus(byte status) {
