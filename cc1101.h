@@ -45,6 +45,7 @@
 #define CC1101_REG_MDMCFG2        0x12  /* Modem Configuration */
 #define CC1101_REG_MDMCFG1        0x13
 #define CC1101_REG_MDMCFG0        0x14
+#define CC1101_REG_DEVIATN        0x15
 #define CC1101_REG_FREQ0          0x0f
 
 #define CC1101_REG_MCSM2          0x16
@@ -70,7 +71,7 @@ enum Status {
   STATUS_LENGTH_TOO_SMALL,
   STATUS_LENGTH_TOO_BIG,
   STATUS_INVALID_PARAM,
-  STATUS_ERROR_CHIP_NOT_FOUND
+  STATUS_CHIP_NOT_FOUND
 };
 
 enum State {
@@ -118,7 +119,7 @@ enum AddressFilteringMode {
 
 class Radio {
  public:
-  Radio(byte cs, byte gd0 = PIN_UNUSED, byte gd2 = PIN_UNUSED)
+  Radio(uint8_t cs, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
     : cs(cs),
       gd0(gd0),
       gd2(gd2),
@@ -135,7 +136,8 @@ class Radio {
 
   void setModulation(Modulation mod);
   Status setFrequency(double freq);
-  Status setChannel(uint8_t ch);
+  Status setFrequencyDeviation(double dev);
+  void setChannel(uint8_t ch);
   Status setChannelSpacing(double sp);
   Status setDataRate(double drate);
   Status setRxBandwidth(double bw);

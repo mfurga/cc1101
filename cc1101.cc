@@ -24,7 +24,7 @@ Status Radio::begin(Modulation mod, double freq, double drate) {
   uint8_t partnum = getChipPartNumber();
   uint8_t version = getChipVersion();
   if (partnum != CC1101_PARTNUM || version != CC1101_VERSION) {
-    return STATUS_ERROR_CHIP_NOT_FOUND;
+    return STATUS_CHIP_NOT_FOUND;
   }
 
   setRegs();
@@ -93,9 +93,38 @@ Status Radio::setFrequency(double freq) {
   return STATUS_OK;
 }
 
-Status Radio::setChannel(uint8_t ch) {
-  writeReg(CC1101_REG_CHANNR, ch);
+Status Radio::setFrequencyDeviation(double dev) {
+  double xosc = CC1101_CRYSTAL_FREQ * 1000;
+
+  int devMin = (xosc / (1 << 17)) * (8 + 0) * 1;
+  int devMax = (xosc / (1 << 17)) * (8 + 7) * (1 << 7);
+
+  if (dev < devMin || dev > devMax) {
+    return STATUS_INVALID_PARAM;
+  }
+
+  uint8_t bestE = 0, bestM = 0;
+  double diff = devMax;
+
+  for (uint8_t e = 0; e <= 7; e++) {
+    for (uint16_t m = 0; m <= 7; m++) {
+      double t = (xosc / (1 << 17)) * (8 + m) * (1 << e);
+      if (fabs(dev - t) < diff) {
+        diff = fabs(dev - t);
+        bestE = e;
+        bestM = m;
+      }
+    }
+  }
+
+  writeRegField(CC1101_REG_DEVIATN, bestM, 2, 0);
+  writeRegField(CC1101_REG_DEVIATN, bestE, 6, 4);
+
   return STATUS_OK;
+}
+
+void Radio::setChannel(uint8_t ch) {
+  writeReg(CC1101_REG_CHANNR, ch);
 }
 
 Status Radio::setChannelSpacing(double sp) {
@@ -353,6 +382,8 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 
   setState(STATE_TX);
 
+  Serial.println(getState());
+
   while (bytesSent < length) {
     uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
 
@@ -363,6 +394,8 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
       bytesSent += bytesToWrite;
     }
   }
+
+  Serial.println("END");
 
   while (getState() != STATE_IDLE) {
     delayMicroseconds(50);

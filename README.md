@@ -26,15 +26,24 @@ The CC1101 exposes also two general purpose pins (GDO0, GDO2) which can be used 
 ```cpp
 void setModulation(Modulation mod)
 ```
-Sets the modulation. Supported modulations: `MOD_2FSK`, `MOD_GFSK`, `MOD_ASK_OOK`, `MOD_4FSK`, `MOD_MSK`.
+Sets the modulation. Allowed modulations: `MOD_2FSK`, `MOD_GFSK`, `MOD_ASK_OOK`, `MOD_4FSK`, `MOD_MSK`.
 
 #### setFrequency
 ```cpp
 Status setFrequency(double freq)
 ```
-Sets the frequency (in MHz). Supported frequency bands: 300-348 MHz, 387-464 MHz, 779-928 MHz.
+Sets the frequency (in MHz). Allowed frequency bands: 300-348 MHz, 387-464 MHz, 779-928 MHz.
 
 Returns `STATUS_INVALID_PARAM` on bad frequency.
+
+
+#### setFrequencyDeviation
+```cpp
+Status setFrequencyDeviation(double dev)
+```
+Sets the frequency deviation. Allowed frequency deviation range: 1.587 to 380.859 kHz (assuming 26.0 MHz crystal frequency). For `MOD_ASK_OOK` modulation this setting has no effect.
+
+Returns `STATUS_INVALID_PARAM` on bad frequency deviation.
 
 #### setChannel
 ```cpp
@@ -62,7 +71,7 @@ Returns `STATUS_INVALID_PARAM` on bad data rate.
 ```cpp
 Status setRxBandwidth(double bw);
 ```
-Sets the receiver channel filter bandwidth (in kHz). Allowed bandwidth range: 58 kHz to 812 kHz (assuming 26.0 MHz crystal frequency).
+Sets the receiver channel filter bandwidth (in kHz). Allowed bandwidth range: 58 to 812 kHz (assuming 26.0 MHz crystal frequency).
 
 Returns `STATUS_INVALID_PARAM` on bad bandwidth.
 
