@@ -405,11 +405,9 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
-  if (!recvCallback) {
-    setState(STATE_IDLE);
-    flushRxBuffer();
-    setState(STATE_RX);
-  }
+  setState(STATE_IDLE);
+  flushRxBuffer();
+  setState(STATE_RX);
 
   uint8_t pktLength = 0;
   switch (pktLenMode) {
@@ -447,7 +445,6 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
     }
   }
 
-  // FIXME
   while (bytesRead < pktLength) {
     while (bytesInFifo == 0) {
       delayMicroseconds(15);
@@ -461,11 +458,6 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
 
   while (getState() != STATE_IDLE) {
     delayMicroseconds(50);
-  }
-
-  if (recvCallback) {
-    flushRxBuffer();
-    setState(STATE_RX);
   }
 
   return STATUS_OK;
