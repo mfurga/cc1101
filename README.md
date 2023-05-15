@@ -58,12 +58,39 @@ Sets the data rate (in kBaud). The allowed data rate depends on the selected mod
 
 Returns `STATUS_INVALID_PARAM` on bad data rate.
 
+#### setRxBandwidth
+```cpp
+Status setRxBandwidth(double bw);
+```
+Sets the receiver channel filter bandwidth (in kHz). Allowed bandwidth range: 58 kHz to 812 kHz (assuming 26.0 MHz crystal frequency).
+
+Returns `STATUS_INVALID_PARAM` on bad bandwidth.
+
 
 #### setOutputPower
 ```cpp
 void setOutputPower(int8_t power)
 ```
 Sets the RF output power (in dBm). Allowed output powers: -30, -20, -15, -10, 0, 5, 7 and 10 dBm.
+
+#### transmit
+```cpp
+Status transmit(uint8_t *data, size_t length, uint8_t addr = 0)
+```
+Transmits the data. The `addr` parameter is used when the address filtering mode is enabled.
+
+Returns `STATUS_LENGTH_TOO_BIG` when `length` parameter is greater than 255.
+
+#### receive
+```cpp
+Status receive(uint8_t *data, size_t length, uint8_t addr = 0)
+```
+Receives the data. The `addr` parameter is used when the address filtering mode is enabled.
+
+Returns
+* `STATUS_LENGTH_TOO_BIG` when the `length` parameter is greater than 255
+* `STATUS_LENGTH_TOO_SMALL` when `data` buffor is to small to receive the entire packet
+
 
 ### Packet format configuration
 
@@ -127,6 +154,7 @@ Sets the address filtering mode.
 void setCrc(bool enable)
 ```
 Enables / disables CRC calculation in TX and CRC checking in RX.
+
 
 ##
 
