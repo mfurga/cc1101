@@ -107,7 +107,7 @@ Status Radio::setFrequencyDeviation(double dev) {
   double diff = devMax;
 
   for (uint8_t e = 0; e <= 7; e++) {
-    for (uint16_t m = 0; m <= 7; m++) {
+    for (uint8_t m = 0; m <= 7; m++) {
       double t = (xosc / (1 << 17)) * (8 + m) * (1 << e);
       if (fabs(dev - t) < diff) {
         diff = fabs(dev - t);
@@ -382,8 +382,6 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 
   setState(STATE_TX);
 
-  Serial.println(getState());
-
   while (bytesSent < length) {
     uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
 
@@ -394,8 +392,6 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
       bytesSent += bytesToWrite;
     }
   }
-
-  Serial.println("END");
 
   while (getState() != STATE_IDLE) {
     delayMicroseconds(50);
@@ -408,8 +404,6 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   if (length > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
-
-  Serial.println("RECV START");
 
   if (!recvCallback) {
     setState(STATE_IDLE);
@@ -442,8 +436,6 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   uint8_t bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
   uint8_t bytesRead = 0;
 
-  Serial.printf("pktLength: %d\r\n", pktLength);
-
   /*
     For packet lengths less than 64 bytes it is recommended to wait until
     the complete packet has been received before reading it out of the RX FIFO.
@@ -472,12 +464,9 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   }
 
   if (recvCallback) {
-    Serial.println("FLUSH");
     flushRxBuffer();
     setState(STATE_RX);
   }
-
-  Serial.println("END RECV");
 
   return STATUS_OK;
 }
