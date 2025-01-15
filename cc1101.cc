@@ -1,5 +1,7 @@
 #include "cc1101.h"
 
+#define log2(x) (log(x) / log(2))
+
 using namespace CC1101;
 
 Status Radio::begin(Modulation mod, double freq, double drate) {
