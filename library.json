@@ -1,0 +1,22 @@
+{
+    "name": "CC1101",
+    "version": "1.0.0",
+    "description": "Arduino library for CC1101 transceiver.",
+    "keywords": "arduino, radio, communication, cc1101",
+    "homepage": "https://github.com/mfurga/cc1101",
+    "repository":
+    {
+        "type": "git",
+        "url": "https://github.com/mfurga/cc1101.git"
+    },
+    "authors":
+    {
+        "name": "Mateusz Furga",
+        "email": "matfurga@gmail.com",
+        "maintainer": true
+    },
+    "license": "MIT",
+    "frameworks": "*",
+    "platforms": "*",
+    "headers": "cc1101.h"
+}
