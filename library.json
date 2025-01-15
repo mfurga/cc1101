@@ -16,7 +16,7 @@
         "maintainer": true
     },
     "license": "MIT",
-    "frameworks": "*",
+    "frameworks": ["arduino"],
     "platforms": "*",
     "headers": "cc1101.h"
 }
