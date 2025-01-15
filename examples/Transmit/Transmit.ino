@@ -1,10 +1,12 @@
 #include <Arduino.h>
+
 #include "cc1101.h"
 
 using namespace CC1101;
 
-Radio radio(10);
 uint8_t data[] = { 0xde, 0xad, 0xbe, 0xef };
+
+Radio radio(/* cs pin */ 10);
 
 void setup() {
   Serial.begin(115200);
@@ -12,13 +14,13 @@ void setup() {
   Serial.println("Starting ...");
   delay(3000);
 
-  if (radio.begin() == STATUS_ERROR_CHIP_NOT_FOUND) {
+  if (radio.begin() == STATUS_CHIP_NOT_FOUND) {
     Serial.println("Chip not found!");
     for (;;);
   }
 
   radio.setModulation(MOD_ASK_OOK);
-  radio.setFrequency(433.804 + 0.05);
+  radio.setFrequency(433.804);
   radio.setDataRate(2.694);
   radio.setOutputPower(10);
 
