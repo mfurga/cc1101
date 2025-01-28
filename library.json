@@ -1,6 +1,6 @@
 {
     "name": "CC1101",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "Arduino library for CC1101 transceiver.",
     "keywords": "arduino, radio, communication, cc1101",
     "homepage": "https://github.com/mfurga/cc1101",
