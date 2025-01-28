@@ -378,7 +378,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
     bytesSent++;
   }
 
-  uint8_t l = min((uint8_t)length, CC1101_FIFO_SIZE - bytesSent);
+  uint8_t l = min((uint8_t)length, (uint8_t)(CC1101_FIFO_SIZE - bytesSent));
   writeRegBurst(CC1101_REG_FIFO, data, l);
   bytesSent += l;
 
@@ -388,8 +388,8 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
     uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
 
     if (bytesInFifo < CC1101_FIFO_SIZE) {
-      uint8_t bytesToWrite = min((uint8_t)length - bytesSent,
-                                 CC1101_FIFO_SIZE - bytesInFifo);
+      uint8_t bytesToWrite = min((uint8_t)(length - bytesSent),
+                                 (uint8_t)(CC1101_FIFO_SIZE - bytesInFifo));
       writeRegBurst(CC1101_REG_FIFO, data + bytesSent, bytesToWrite);
       bytesSent += bytesToWrite;
     }
@@ -453,7 +453,7 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
       bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
     }
 
-    uint8_t bytesToRead = min(pktLength - bytesRead, bytesInFifo);
+    uint8_t bytesToRead = min((uint8_t)(pktLength - bytesRead), bytesInFifo);
     readRegBurst(CC1101_REG_FIFO, data + bytesRead, bytesToRead);
     bytesRead += bytesToRead;
   }
@@ -600,7 +600,7 @@ void Radio::readRegBurst(uint8_t addr, uint8_t *buff, size_t size) {
 }
 
 void Radio::writeRegField(uint8_t addr, uint8_t data, uint8_t hi,
-                           uint8_t lo) {
+                          uint8_t lo) {
   data <<= lo;
   uint8_t current = readReg(addr);
   uint8_t mask = ((1 << (hi - lo + 1)) - 1) << lo;
