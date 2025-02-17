@@ -1,6 +1,5 @@
 #include <Arduino.h>
-
-#include "cc1101.h"
+#include <cc1101.h>
 
 using namespace CC1101;
 
@@ -20,14 +19,14 @@ void setup() {
   }
 
   radio.setModulation(MOD_ASK_OOK);
-  radio.setFrequency(433.804);
-  radio.setDataRate(2.694);
+  radio.setFrequency(433.8);
+  radio.setDataRate(10);
   radio.setOutputPower(10);
 
   radio.setPacketLengthMode(PKT_LEN_MODE_FIXED, sizeof(data));
   radio.setAddressFilteringMode(ADDR_FILTER_MODE_NONE);
   radio.setPreambleLength(16);
-  radio.setSyncWord(0xaa00);
+  radio.setSyncWord(0x0001);
   radio.setSyncMode(SYNC_MODE_16_16);
   radio.setCrc(false);
 }

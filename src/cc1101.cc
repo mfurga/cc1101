@@ -110,7 +110,7 @@ Status Radio::setFrequencyDeviation(double dev) {
 
   for (uint8_t e = 0; e <= 7; e++) {
     for (uint8_t m = 0; m <= 7; m++) {
-      double t = (xosc / (1 << 17)) * (8 + m) * (1 << e);
+      double t = (xosc / (double)(1ULL << 17)) * (8 + m) * (double)(1ULL << e);
       if (fabs(dev - t) < diff) {
         diff = fabs(dev - t);
         bestE = e;
@@ -132,8 +132,8 @@ void Radio::setChannel(uint8_t ch) {
 Status Radio::setChannelSpacing(double sp) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  int spMin = (xosc / (1 << 18)) * (256 + 0) * 1;
-  int spMax = (xosc / (1 << 18)) * (256 + 255) * 8;
+  int spMin = (xosc / (double)(1ULL << 18)) * (256. + 0.) * 1.;
+  int spMax = (xosc / (double)(1ULL << 18)) * (256. + 255.) * 8.;
 
   if (sp < spMin || sp > spMax) {
     return STATUS_INVALID_PARAM;
@@ -144,7 +144,7 @@ Status Radio::setChannelSpacing(double sp) {
 
   for (uint8_t e = 0; e <= 3; e++) {
     for (uint16_t m = 0; m <= 255; m++) {
-      double t = (xosc / (1 << 18)) * (256 + m) * (1 << e);
+      double t = (xosc / (double)(1ULL << 18)) * (256. + m) * (double)(1ULL << e);
       if (fabs(sp - t) < diff) {
         diff = fabs(sp - t);
         bestE = e;
@@ -179,8 +179,8 @@ Status Radio::setDataRate(double drate) {
   this->drate = drate;
 
   uint32_t xosc = CC1101_CRYSTAL_FREQ * 1000;
-  uint8_t e = log2((drate * (1 << 20)) / xosc);
-  uint32_t m = round(drate * ((1 << 28) / (xosc * (1 << e))) - 256);
+  uint8_t e = log2((drate * (double)(1ULL << 20)) / xosc);
+  uint32_t m = round(drate * ((double)(1ULL << (28 - e)) / xosc) - 256.);
 
   if (m == 256) {
     m = 0;
