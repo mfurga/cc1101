@@ -99,7 +99,21 @@ Receives the data. The `addr` parameter is used when the address filtering mode 
 Returns
 * `STATUS_LENGTH_TOO_BIG` when the `length` parameter is greater than 255
 * `STATUS_LENGTH_TOO_SMALL` when `data` buffor is to small to receive the entire packet
+* `STATUS_CRC_MISMATCH` when the received CRC does not match the calculated CRC 
 
+#### getRSSI
+```cpp
+int8_t getRSSI()
+```
+
+Returns RSSI (Received Signal Strength Indicator) of the last received packet.
+
+#### getLQI
+```cpp
+uint8_t getLQI()
+```
+
+Returns LQI (Link Quality Indicator) of the last received packet.
 
 ### Packet format configuration
 

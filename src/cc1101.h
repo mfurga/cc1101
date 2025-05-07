@@ -72,7 +72,8 @@ enum Status {
   STATUS_LENGTH_TOO_SMALL,
   STATUS_LENGTH_TOO_BIG,
   STATUS_INVALID_PARAM,
-  STATUS_CHIP_NOT_FOUND
+  STATUS_CHIP_NOT_FOUND,
+  STATUS_CRC_MISMATCH
 };
 
 enum State {
@@ -155,6 +156,9 @@ class Radio {
 
   Status transmit(uint8_t *data, size_t length, uint8_t addr = 0);
   Status receive(uint8_t *data, size_t length, uint8_t addr = 0);
+  int8_t getRSSI();
+  uint8_t getLQI();
+
   void receiveCallback(void (*func)(void));
 
  private:
@@ -193,6 +197,8 @@ class Radio {
   double freq = 433.5;
   double drate = 4.0;
   int8_t power = 0;
+  uint8_t rssi;
+  uint8_t lqi;
 };
 
 }
