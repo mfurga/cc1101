@@ -25,7 +25,8 @@ Status Radio::begin(Modulation mod, double freq, double drate) {
 
   uint8_t partnum = getChipPartNumber();
   uint8_t version = getChipVersion();
-  if (partnum != CC1101_PARTNUM || version != CC1101_VERSION) {
+  if (partnum != CC1101_PARTNUM ||
+      (version != CC1101_VERSION && version != CC1101_VERSION_LEGACY)) {
     return STATUS_CHIP_NOT_FOUND;
   }
 
