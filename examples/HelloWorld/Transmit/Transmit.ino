@@ -42,7 +42,7 @@ void loop() {
   if (status == STATUS_OK) {
     Serial.println("[OK]");
   } else {
-    Serial.println("[ERRPR]");
+    Serial.println("[ERROR]");
   }
 
   delay(1000);
