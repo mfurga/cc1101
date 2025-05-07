@@ -19,6 +19,7 @@
 
 #define CC1101_PARTNUM            0x00
 #define CC1101_VERSION            0x14
+#define CC1101_VERSION_LEGACY     0x04
 
 /* Command strobes */
 #define CC1101_CMD_RES            0x30  /* Reset chip */
