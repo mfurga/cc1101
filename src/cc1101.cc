@@ -58,12 +58,8 @@ void Radio::setRegs() {
   /* Disable data whitening. */
   writeRegField(CC1101_REG_PKTCTRL0, 0, 6, 6);
 
-  /*
-    TODO: Enable append status. Two status bytes will be appended to the payload
-    of the packet. The status bytes contain RSSI and LQI values, as well as
-    CRC OK.
-  */
-  writeRegField(CC1101_REG_PKTCTRL1, 0, 2, 2);
+  /* Enable append status */
+  writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);
 
   /* Enable Manchester encoding */
   //writeRegField(CC1101_REG_MDMCFG2, 1, 3, 3);
@@ -333,6 +329,8 @@ void Radio::setSyncMode(SyncMode mode) {
 }
 
 void Radio::setPacketLengthMode(PacketLengthMode mode, uint8_t length) {
+  this->pktLenMode = mode;
+
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)mode, 1, 0);
 
   switch (mode) {
@@ -354,10 +352,27 @@ void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
 }
 
-Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
-  uint8_t bytesSent = 0;
+int8_t Radio::getRSSI() {
+  if (this->rssi >= 128) {
+    return (((int8_t)this->rssi - 256) / 2) - 74;
+  } else {
+    return ((int8_t)this->rssi / 2) - 74;
+  }
+}
 
-  if (length > 255) {
+uint8_t Radio::getLQI() {
+  return this->lqi;
+}
+
+Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
+  uint8_t bytesSent = 0, dataSent = 0;
+  size_t totalLength = length;
+
+  if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
+    totalLength++;
+  }
+
+  if (totalLength > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
@@ -366,10 +381,10 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 
   switch (pktLenMode) {
     case PKT_LEN_MODE_FIXED:
-      writeReg(CC1101_REG_PKTLEN, (uint8_t)length);
+      writeReg(CC1101_REG_PKTLEN, (uint8_t)totalLength);
     break;
     case PKT_LEN_MODE_VARIABLE:
-      writeReg(CC1101_REG_FIFO, (uint8_t)length);
+      writeReg(CC1101_REG_FIFO, (uint8_t)totalLength);
       bytesSent++;
     break;
   }
@@ -382,17 +397,19 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   uint8_t l = min((uint8_t)length, (uint8_t)(CC1101_FIFO_SIZE - bytesSent));
   writeRegBurst(CC1101_REG_FIFO, data, l);
   bytesSent += l;
+  dataSent += l;
 
   setState(STATE_TX);
 
-  while (bytesSent < length) {
+  while (dataSent < length) {
     uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
 
     if (bytesInFifo < CC1101_FIFO_SIZE) {
-      uint8_t bytesToWrite = min((uint8_t)(length - bytesSent),
+      uint8_t bytesToWrite = min((uint8_t)(length - dataSent),
                                  (uint8_t)(CC1101_FIFO_SIZE - bytesInFifo));
-      writeRegBurst(CC1101_REG_FIFO, data + bytesSent, bytesToWrite);
+      writeRegBurst(CC1101_REG_FIFO, data + dataSent, bytesToWrite);
       bytesSent += bytesToWrite;
+      dataSent += bytesToWrite;
     }
   }
 
@@ -421,11 +438,13 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
       /* Wait for length byte. */
       while (pktLength == 0) {
         pktLength = readReg(CC1101_REG_FIFO);
+        delayMicroseconds(15);
       }
     break;
   }
 
   if (pktLength > length) {
+    setState(STATE_IDLE);
     return STATUS_LENGTH_TOO_SMALL;
   }
 
@@ -462,6 +481,18 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   while (getState() != STATE_IDLE) {
     delayMicroseconds(50);
   }
+
+  this->rssi = readReg(CC1101_REG_FIFO);
+  uint8_t v = readReg(CC1101_REG_FIFO);
+  this->lqi = v & 0x7f;
+
+  bool crc_ok = (v >> 7) & 1;
+  if (!crc_ok) {
+    return STATUS_CRC_MISMATCH;
+  }
+
+  setState(STATE_IDLE);
+  flushRxBuffer();
 
   return STATUS_OK;
 }
