@@ -183,4 +183,4 @@ Enables / disables CRC calculation in TX and CRC checking in RX.
 
 ##
 
-The library was tested on [Teensy 4.0](https://www.pjrc.com/store/teensy40.html).
+The library was tested on [Teensy 4.0](https://www.pjrc.com/store/teensy40.html) and [Arduino Pro Mini 3.3V](https://docs.arduino.cc/retired/boards/arduino-pro-mini/).
