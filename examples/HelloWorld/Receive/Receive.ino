@@ -21,7 +21,7 @@ void setup() {
   radio.setDataRate(10);
   radio.setOutputPower(10);
 
-  radio.setPacketLengthMode(PKT_LEN_MODE_FIXED, 10);
+  radio.setPacketLengthMode(PKT_LEN_MODE_VARIABLE);
   radio.setAddressFilteringMode(ADDR_FILTER_MODE_NONE);
   radio.setPreambleLength(64);
   radio.setSyncWord(0x1234);
@@ -30,14 +30,20 @@ void setup() {
 }
 
 void loop() {
-  char buff[32] = {0};
+  char buff[32];
+  size_t read;
 
   Serial.println("Receiving ...");
-  Status status = radio.receive((uint8_t *)buff, sizeof(buff));
+  Status status = radio.receive((uint8_t *)buff, sizeof(buff) - 1, &read);
 
   if (status == STATUS_OK) {
+    buff[read] = '\0';
+
     Serial.print("Data: ");
     Serial.println(buff);
+
+    Serial.print("Length: ");
+    Serial.println(read);
 
     Serial.print("RSSI: ");
     Serial.print(radio.getRSSI());
@@ -51,6 +57,5 @@ void loop() {
     Serial.println("Error!");
   }
 
-  memset(buff, 0, sizeof(buff));
   Serial.println();
 }

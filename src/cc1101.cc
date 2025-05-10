@@ -429,7 +429,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   return STATUS_OK;
 }
 
-Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
+Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) {
   if (length > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
@@ -502,6 +502,10 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   bool crc_ok = (v >> 7) & 1;
   if (!crc_ok) {
     return STATUS_CRC_MISMATCH;
+  }
+
+  if (read != nullptr) {
+    *read = dataLength;
   }
 
   return STATUS_OK;

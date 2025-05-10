@@ -21,7 +21,7 @@ void setup() {
   radio.setDataRate(10);
   radio.setOutputPower(10);
 
-  radio.setPacketLengthMode(PKT_LEN_MODE_FIXED, 10);
+  radio.setPacketLengthMode(PKT_LEN_MODE_VARIABLE);
   radio.setAddressFilteringMode(ADDR_FILTER_MODE_NONE);
   radio.setPreambleLength(64);
   radio.setSyncWord(0x1234);
@@ -32,9 +32,7 @@ void setup() {
 int counter = 0;
 
 void loop() {
-  String id = "000" + String(counter++);
-  id = id.substring(id.length() - 3);
-  String data = "Hello #" + id;
+  String data = "Hello #" + String(counter++);
 
   Serial.print("Transmitting: " + data + " ");
   Status status = radio.transmit((uint8_t *)data.c_str(), data.length());
