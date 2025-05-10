@@ -246,7 +246,7 @@ void Radio::setOutputPower(int8_t power) {
     freqIdx = 0;
   } else if (freq <= 464.0) {
     freqIdx = 1;
-  } else if (freq <= 855.0) {
+  } else if (freq <= 891.5) {
     freqIdx = 2;
   } else {
     freqIdx = 3;
@@ -330,6 +330,7 @@ void Radio::setSyncMode(SyncMode mode) {
 
 void Radio::setPacketLengthMode(PacketLengthMode mode, uint8_t length) {
   this->pktLenMode = mode;
+  this->pktLen = length;
 
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)mode, 1, 0);
 
@@ -345,6 +346,8 @@ void Radio::setPacketLengthMode(PacketLengthMode mode, uint8_t length) {
 }
 
 void Radio::setAddressFilteringMode(AddressFilteringMode mode) {
+  this->addrFilterMode = mode;
+
   writeRegField(CC1101_REG_PKTCTRL1, (uint8_t)mode, 1, 0);
 }
 
@@ -366,13 +369,13 @@ uint8_t Radio::getLQI() {
 
 Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   uint8_t bytesSent = 0, dataSent = 0;
-  size_t totalLength = length;
+  size_t curPktLen = length;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
-    totalLength++;
+    curPktLen++;
   }
 
-  if (totalLength > 255) {
+  if (curPktLen > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
@@ -381,10 +384,16 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 
   switch (pktLenMode) {
     case PKT_LEN_MODE_FIXED:
-      writeReg(CC1101_REG_PKTLEN, (uint8_t)totalLength);
+      if (curPktLen < pktLen) {
+        return STATUS_LENGTH_TOO_SMALL;
+      }
+
+      if (curPktLen > pktLen) {
+        return STATUS_LENGTH_TOO_BIG;
+      }
     break;
     case PKT_LEN_MODE_VARIABLE:
-      writeReg(CC1101_REG_FIFO, (uint8_t)totalLength);
+      writeReg(CC1101_REG_FIFO, (uint8_t)curPktLen);
       bytesSent++;
     break;
   }
@@ -425,57 +434,59 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
+  writeReg(CC1101_REG_ADDR, addr);
+
   setState(STATE_IDLE);
   flushRxBuffer();
   setState(STATE_RX);
 
-  uint8_t pktLength = 0;
+  uint8_t bytesInFifo;
+  uint8_t bytesRead = 0;
+  uint8_t curPktLen = 0;
+
   switch (pktLenMode) {
     case PKT_LEN_MODE_FIXED:
-      pktLength = readReg(CC1101_REG_PKTLEN);
+      curPktLen = this->pktLen;
     break;
     case PKT_LEN_MODE_VARIABLE:
-      /* Wait for length byte. */
-      while (pktLength == 0) {
-        pktLength = readReg(CC1101_REG_FIFO);
-        delayMicroseconds(15);
-      }
+      waitForBytesInFifo();
+      curPktLen = readReg(CC1101_REG_FIFO);
+      bytesRead++;
     break;
   }
 
-  if (pktLength > length) {
+  uint8_t dataRead = 0;
+  uint8_t dataLength = curPktLen;
+
+  if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
+    waitForBytesInFifo();
+    (void)readReg(CC1101_REG_FIFO);
+    bytesRead++;
+    dataLength--;
+  }
+
+  if (dataLength > length) {
     setState(STATE_IDLE);
     return STATUS_LENGTH_TOO_SMALL;
   }
-
-  if (addrFilterMode == ADDR_FILTER_MODE_CHECK) {
-    // TODO: To check.
-    (void)readReg(CC1101_REG_FIFO);
-  }
-
-  uint8_t bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
-  uint8_t bytesRead = 0;
 
   /*
     For packet lengths less than 64 bytes it is recommended to wait until
     the complete packet has been received before reading it out of the RX FIFO.
   */
-  if (pktLength <= CC1101_PKT_MAX_SIZE) {
-    while (bytesInFifo < pktLength) {
-      delayMicroseconds(15 * 8);
-      bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
-    }
+  if (dataLength <= (uint8_t)(CC1101_FIFO_SIZE - bytesRead)) {
+    do {
+      delayMicroseconds(15);
+      bytesInFifo = waitForBytesInFifo();
+    } while (bytesInFifo < dataLength);
   }
 
-  while (bytesRead < pktLength) {
-    while (bytesInFifo == 0) {
-      delayMicroseconds(15);
-      bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
-    }
-
-    uint8_t bytesToRead = min((uint8_t)(pktLength - bytesRead), bytesInFifo);
-    readRegBurst(CC1101_REG_FIFO, data + bytesRead, bytesToRead);
+  while (dataRead < dataLength) {
+    bytesInFifo = waitForBytesInFifo();
+    uint8_t bytesToRead = min((uint8_t)(dataLength - dataRead), bytesInFifo);
+    readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     bytesRead += bytesToRead;
+    dataRead += bytesToRead;
   }
 
   while (getState() != STATE_IDLE) {
@@ -486,15 +497,23 @@ Status Radio::receive(uint8_t *data, size_t length, uint8_t addr) {
   uint8_t v = readReg(CC1101_REG_FIFO);
   this->lqi = v & 0x7f;
 
+  flushRxBuffer();
+
   bool crc_ok = (v >> 7) & 1;
   if (!crc_ok) {
     return STATUS_CRC_MISMATCH;
   }
 
-  setState(STATE_IDLE);
-  flushRxBuffer();
-
   return STATUS_OK;
+}
+
+uint8_t Radio::waitForBytesInFifo() {
+  uint8_t bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+  while (bytesInFifo == 0) {
+    delayMicroseconds(15);
+    bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+  }
+  return bytesInFifo;
 }
 
 void Radio::receiveCallback(void (*func)(void)) {

@@ -11,7 +11,6 @@
 
 #define CC1101_FIFO_SIZE          64    /* 64 B */
 #define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
-#define CC1101_PKT_MAX_SIZE       61    /* 61 B, 1B for address, 2B for status */
 
 #define CC1101_WRITE              0x00
 #define CC1101_READ               0x80
@@ -37,6 +36,7 @@
 #define CC1101_REG_PKTLEN         0x06
 #define CC1101_REG_PKTCTRL1       0x07
 #define CC1101_REG_PKTCTRL0       0x08  /* Packet Automation Control */
+#define CC1101_REG_ADDR           0x09
 
 #define CC1101_REG_CHANNR         0x0a
 #define CC1101_REG_FREQ2          0x0d
@@ -163,8 +163,9 @@ class Radio {
 
  private:
   void chipSelect();
-  void waitReady();
   void chipDeselect();
+  void waitReady();
+  uint8_t waitForBytesInFifo();
 
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
   uint8_t readReg(uint8_t addr);
@@ -197,6 +198,7 @@ class Radio {
   double freq = 433.5;
   double drate = 4.0;
   int8_t power = 0;
+  uint8_t pktLen;
   uint8_t rssi;
   uint8_t lqi;
 };

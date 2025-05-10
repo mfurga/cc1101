@@ -37,7 +37,7 @@ void loop() {
   String data = "Hello #" + id;
 
   Serial.print("Transmitting: " + data + " ");
-  Status status = radio.transmit((uint8_t *)data.c_str(), 10);
+  Status status = radio.transmit((uint8_t *)data.c_str(), data.length());
 
   if (status == STATUS_OK) {
     Serial.println("[OK]");
