@@ -188,7 +188,7 @@ Enables / disables CRC calculation in TX and CRC checking in RX.
 The library was tested on the following boards:
 
  * [Teensy 4.0](https://www.pjrc.com/store/teensy40.html)
- * [Arduino Pro Mini 3.3V](https://docs.arduino.cc/retired/boards/arduino-pro-mini/),
+ * [Arduino Pro Mini 3.3V](https://docs.arduino.cc/retired/boards/arduino-pro-mini/)
  * [Wemos D1 Mini ESP32](https://docs.platformio.org/en/stable/boards/espressif32/wemos_d1_mini32.html)
- * [ESP32C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/).
+ * [ESP32C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/)
 
