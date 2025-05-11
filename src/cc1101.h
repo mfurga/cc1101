@@ -121,6 +121,19 @@ enum AddressFilteringMode {
 
 class Radio {
  public:
+#ifdef ESP32
+  Radio(uint8_t cs, uint8_t clk = PIN_UNUSED, uint8_t miso = PIN_UNUSED, uint8_t mosi = PIN_UNUSED, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
+    : cs(cs),
+      gd0(gd0),
+      gd2(gd2),
+      clk(clk),
+      miso(miso),
+      mosi(mosi),
+      spiSettings(CC1101_SPI_MAX_FREQ,
+                  CC1101_SPI_DATA_ORDER,
+                  CC1101_SPI_DATA_MODE) {}
+
+#else
   Radio(uint8_t cs, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
     : cs(cs),
       gd0(gd0),
@@ -128,6 +141,7 @@ class Radio {
       spiSettings(CC1101_SPI_MAX_FREQ,
                   CC1101_SPI_DATA_ORDER,
                   CC1101_SPI_DATA_MODE) {}
+#endif
 
   Status begin(Modulation mod = MOD_ASK_OOK,
                double freq = 433.5,
@@ -187,6 +201,7 @@ class Radio {
   void saveStatus(byte status);
 
   uint8_t cs, gd0, gd2;
+  uint8_t clk, miso, mosi;
   SPISettings spiSettings;
 
   State currentState = STATE_IDLE;

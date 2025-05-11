@@ -18,7 +18,11 @@ Status Radio::begin(Modulation mod, double freq, double drate) {
   }
 
   chipDeselect();
+  #ifdef ESP32
+  SPI.begin(clk, miso, mosi, cs);
+  #else
   SPI.begin();
+  #endif
 
   hardReset();
   delay(10);
@@ -725,6 +729,14 @@ void Radio::chipDeselect() {
 }
 
 void Radio::waitReady() {
+  #ifdef CONFIG_IDF_TARGET_ESP32C3
+  // ESP32C3 does not allow a pin to be polled whilst it is attached to the
+  // SPI peripheral. This will hang forever.
+  // Fortunately, the CC1101 datasheet (pp29-30) states that MISO immediately
+  // goes low on CS unless in a low power mode. As this library does not (yet)
+  // support low power modes, we can safely return immediately.
+  return;
+  #endif
   while (digitalRead(MISO))
     ;
 }
