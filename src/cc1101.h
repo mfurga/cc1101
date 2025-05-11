@@ -122,7 +122,8 @@ enum AddressFilteringMode {
 class Radio {
  public:
 #ifdef ESP32
-  Radio(uint8_t cs, uint8_t clk = PIN_UNUSED, uint8_t miso = PIN_UNUSED, uint8_t mosi = PIN_UNUSED, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
+  Radio(uint8_t cs, uint8_t clk = PIN_UNUSED, uint8_t miso = PIN_UNUSED,
+        uint8_t mosi = PIN_UNUSED, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
     : cs(cs),
       gd0(gd0),
       gd2(gd2),
