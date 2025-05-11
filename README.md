@@ -15,6 +15,8 @@ For more information check out the [datasheet](https://www.ti.com/lit/ds/symlink
 
 The CC1101 module uses the SPI interface for communication. The SI, SO, SCLK pins should be connected to dedicated SPI pins on your Arduino board. The CSn can be connected to any digital pin.
 
+On an ESP32, any GPIOs can be used, you can specify alternate ones in the constructor.
+
 The CC1101 exposes also two general purpose pins (GDO0, GDO2) which can be used to interrupt the MCU on certain events (e.g. RX FIFO is filled). They are optional and not required for proper work.
 
 
@@ -183,4 +185,5 @@ Enables / disables CRC calculation in TX and CRC checking in RX.
 
 ##
 
-The library was tested on [Teensy 4.0](https://www.pjrc.com/store/teensy40.html) and [Arduino Pro Mini 3.3V](https://docs.arduino.cc/retired/boards/arduino-pro-mini/).
+The library was tested on [Teensy 4.0](https://www.pjrc.com/store/teensy40.html), [Arduino Pro Mini 3.3V](https://docs.arduino.cc/retired/boards/arduino-pro-mini/),
+[Wemos D1 Mini ESP32](https://docs.platformio.org/en/stable/boards/espressif32/wemos_d1_mini32.html), and [ESP32C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/).
