@@ -7,12 +7,12 @@ Radio radio(/* cs pin */ 10);
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("Starting ...");
   delay(3000);
+  Serial.println(F("Starting ..."));
+  delay(1000);
 
   if (radio.begin() == STATUS_CHIP_NOT_FOUND) {
-    Serial.println("Chip not found!");
+    Serial.println(F("Chip not found!"));
     for (;;);
   }
 
@@ -34,13 +34,15 @@ int counter = 0;
 void loop() {
   String data = "Hello #" + String(counter++);
 
-  Serial.print("Transmitting: " + data + " ");
+  Serial.print(F("Transmitting: "));
+  Serial.print(data);
+  Serial.print(F(" "));
   Status status = radio.transmit((uint8_t *)data.c_str(), data.length());
 
   if (status == STATUS_OK) {
-    Serial.println("[OK]");
+    Serial.println(F("[OK]"));
   } else {
-    Serial.println("[ERROR]");
+    Serial.println(F("[ERROR]"));
   }
 
   delay(1000);
