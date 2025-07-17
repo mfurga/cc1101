@@ -7,12 +7,12 @@ Radio radio(/* cs pin */ 10);
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
-  Serial.println("Starting ...");
   delay(3000);
+  Serial.println(F("Starting ..."));
+  delay(1000);
 
   if (radio.begin() == STATUS_CHIP_NOT_FOUND) {
-    Serial.println("Chip not found!");
+    Serial.println(F("Chip not found!"));
     for (;;);
   }
 
@@ -33,28 +33,28 @@ void loop() {
   char buff[32];
   size_t read;
 
-  Serial.println("Receiving ...");
+  Serial.println(F("Receiving ..."));
   Status status = radio.receive((uint8_t *)buff, sizeof(buff) - 1, &read);
 
   if (status == STATUS_OK) {
     buff[read] = '\0';
 
-    Serial.print("Data: ");
+    Serial.print(F("Data: "));
     Serial.println(buff);
 
-    Serial.print("Length: ");
+    Serial.print(F("Length: "));
     Serial.println(read);
 
-    Serial.print("RSSI: ");
+    Serial.print(F("RSSI: "));
     Serial.print(radio.getRSSI());
-    Serial.println(" dBm");
+    Serial.println(F(" dBm"));
 
-    Serial.print("LQI: ");
+    Serial.print(F("LQI: "));
     Serial.println(radio.getLQI());
   } else if (status == STATUS_CRC_MISMATCH) {
-    Serial.println("CRC mismatch!");
+    Serial.println(F("CRC mismatch!"));
   } else {
-    Serial.println("Error!");
+    Serial.println(F("Error!"));
   }
 
   Serial.println();

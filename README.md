@@ -93,6 +93,7 @@ Transmits the data. The `addr` parameter is used when the address filtering mode
 Returns
 * `STATUS_LENGTH_TOO_BIG` if `length` parameter is greater than 255, or if the `length` is greater than required in fixed packet mode
 * `STATUS_LENGTH_TOO_SMALL` if the `length` is smaller than required in fixed packet mode
+* `STATUS_TXFIFO_UNDERFLOW` if the TX FIFO buffer runs out of data during transmission
 
 #### receive
 ```cpp
@@ -103,7 +104,8 @@ Receives the data. The `read` parameter indicates the number of bytes actually r
 Returns
 * `STATUS_LENGTH_TOO_BIG` if the `length` parameter is greater than 255
 * `STATUS_LENGTH_TOO_SMALL` if `data` buffer is too small to hold the entire packet
-* `STATUS_CRC_MISMATCH` if the received CRC does not match the calculated CRC 
+* `STATUS_CRC_MISMATCH` if the received CRC does not match the calculated CRC
+* `STATUS_RXFIFO_OVERFLOW` if the RX FIFO overflows due to unread incoming data
 
 #### getRSSI
 ```cpp
