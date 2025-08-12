@@ -145,7 +145,7 @@ Sets the sync word mode.
 ```cpp
 Status setPreambleLength(uint8_t length)
 ```
-Sets the preamble length (in bits). Allowed lengths: 16, 24, 36, 48, 64, 96, 128 and 192.
+Sets the preamble length (in bits). Allowed lengths: 16, 24, 32, 48, 64, 96, 128 and 192.
 
 Returns `STATUS_INVALID_PARAM` on bad length.
 

@@ -297,7 +297,7 @@ Status Radio::setPreambleLength(uint8_t length) {
     case 24:
       data = 1;
     break;
-    case 36:
+    case 32:
       data = 2;
     break;
     case 48:
