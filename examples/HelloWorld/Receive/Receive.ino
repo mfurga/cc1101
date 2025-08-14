@@ -13,7 +13,7 @@ void setup() {
 
   if (radio.begin() == STATUS_CHIP_NOT_FOUND) {
     Serial.println(F("Chip not found!"));
-    for (;;);
+    while (true) { delay(1000); }
   }
 
   radio.setModulation(MOD_ASK_OOK);

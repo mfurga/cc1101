@@ -431,6 +431,8 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
       flushTxBuffer();
       break;
     }
+
+    yield();
   }
 
   while (getState() != STATE_IDLE) {
@@ -439,6 +441,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
       flushTxBuffer();
     }
     delayMicroseconds(50);
+    yield();
   }
 
   return ret;
@@ -490,6 +493,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   if (dataLength <= (uint8_t)(CC1101_FIFO_SIZE - bytesRead)) {
     do {
       delayMicroseconds(15);
+      yield();
       bytesInFifo = waitForBytesInFifo();
     } while (bytesInFifo < dataLength);
   }
@@ -512,8 +516,10 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     if (currentState == STATE_RXFIFO_OVERFLOW) {
       ret = STATUS_RXFIFO_OVERFLOW;
       flushRxBuffer();
+      break;
     }
     delayMicroseconds(50);
+    yield();
   }
 
   if (ret != STATUS_OK) {
@@ -542,6 +548,7 @@ uint8_t Radio::waitForBytesInFifo() {
   uint8_t bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
   while (bytesInFifo == 0) {
     delayMicroseconds(15);
+    yield();
     bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
   }
   return bytesInFifo;
@@ -586,6 +593,7 @@ void Radio::setState(State state) {
 
   while (getState() != state) {
     delayMicroseconds(100);
+    yield();
   }
 }
 
