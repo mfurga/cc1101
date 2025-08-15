@@ -59,14 +59,11 @@ void Radio::setRegs() {
   /* Automatically calibrate when going from IDLE to RX or TX. */
   writeRegField(CC1101_REG_MCSM0, 1, 5, 4);
 
-  /* Disable data whitening. */
-  writeRegField(CC1101_REG_PKTCTRL0, 0, 6, 6);
-
   /* Enable append status */
   writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);
 
-  /* Enable Manchester encoding */
-  //writeRegField(CC1101_REG_MDMCFG2, 1, 3, 3);
+  /* Disable data whitening. */
+  setDataWhitening(false);
 }
 
 void Radio::setModulation(Modulation mod) {
@@ -74,6 +71,10 @@ void Radio::setModulation(Modulation mod) {
   writeRegField(CC1101_REG_MDMCFG2, (uint8_t)mod, 6, 4);
 
   setOutputPower(this->power);
+  
+  if (mod == MOD_MSK || mod == MOD_4FSK) {
+    setManchester(false);
+  }
 }
 
 Status Radio::setFrequency(double freq) {
@@ -357,6 +358,30 @@ void Radio::setAddressFilteringMode(AddressFilteringMode mode) {
 
 void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
+}
+
+void Radio::setDataWhitening(bool enable) {
+  writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 6, 6);
+}
+
+Status Radio::setManchester(bool enable) {
+  if (enable && (this->mod == MOD_MSK || this->mod == MOD_4FSK || this->fec)) {
+    return STATUS_BAD_STATE;
+  }
+
+  this->manchester = enable;
+  writeRegField(CC1101_REG_MDMCFG2, (uint8_t)enable, 3, 3);
+  return STATUS_OK;
+}
+
+Status Radio::setFEC(bool enable) {
+  if (enable && (this->pktLenMode != PKT_LEN_MODE_FIXED || this->manchester)) {
+    return STATUS_BAD_STATE;
+  }
+
+  this->fec = enable;
+  writeRegField(CC1101_REG_MDMCFG1, (uint8_t)enable, 7, 7);
+  return STATUS_OK;
 }
 
 int8_t Radio::getRSSI() {

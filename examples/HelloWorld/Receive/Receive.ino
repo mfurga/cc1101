@@ -27,6 +27,9 @@ void setup() {
   radio.setSyncWord(0x1234);
   radio.setSyncMode(SYNC_MODE_16_16);
   radio.setCrc(true);
+  radio.setDataWhitening(true);
+  radio.setManchester(false);
+  radio.setFEC(false);
 }
 
 void loop() {
@@ -54,7 +57,8 @@ void loop() {
   } else if (status == STATUS_CRC_MISMATCH) {
     Serial.println(F("CRC mismatch!"));
   } else {
-    Serial.println(F("Error!"));
+    Serial.print(F("Error: "));
+    Serial.println(status);
   }
 
   Serial.println();
