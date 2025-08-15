@@ -77,7 +77,6 @@ Sets the receiver channel filter bandwidth (in kHz). Allowed bandwidth range: 58
 
 Returns `STATUS_INVALID_PARAM` on bad bandwidth.
 
-
 #### setOutputPower
 ```cpp
 void setOutputPower(int8_t power)
@@ -164,8 +163,8 @@ Sets the packet length mode. Packet length types:
 * `PKT_LEN_MODE_FIXED` - Fixed packet length mode. The length field is not transmitted in TX and `length` parameter indicates the number of bytes that handler will accept in RX.
 * `PKT_LEN_MODE_VARIABLE` - Variable packet length mode. The length field is transmitted in TX. The packet handler assumes that the first byte (after the sync word) is the length byte and receives the number of bytes indicated by its value. The `length` parameter is used to set the maximum packet length allowed in RX. Any packet received with a length byte with a value greater than `length` will be discarded.
 
-**The library supports only packets up to 255 bytes.**
-
+> [!IMPORTANT]
+> The library supports only packets up to 255 bytes.
 
 #### setAddressFilteringMode
 ```cpp
@@ -182,8 +181,41 @@ Sets the address filtering mode.
 ```cpp
 void setCrc(bool enable)
 ```
-Enables / disables CRC calculation in TX and CRC checking in RX.
+Enables/disables CRC calculation in TX and CRC checking in RX.
 
+#### setDataWhitening
+```cpp
+void setDataWhitening(bool enable)
+```
+
+Enables/disables data whitening.
+
+If whitening is enabled, everything following the sync words will be whitened. This is done before the optional FEC/Interleaver stage.
+
+#### setManchester
+```cpp
+Status setManchester(bool enable)
+```
+
+Enables/disables Manchester encoding in TX and Manchester decoding in RX.
+
+> [!NOTE]
+> Manchester encoding is not supported at the same time as using the FEC/Interleaver option or when using MSK
+and 4-FSK modulation.
+
+Returns `STATUS_BAD_STATE` if Manchester encoding cannot be enabled.
+
+#### setFEC
+```cpp
+Status setFEC(bool enable)
+```
+
+Enables/disables Forward Error Correction (FEC) with interleaving for the packet payload.
+
+> [!NOTE]
+> Only supported for fixed packet length mode and when Manchester encoding is disabled.
+
+Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
 
 ##
 

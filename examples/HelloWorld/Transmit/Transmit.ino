@@ -27,6 +27,9 @@ void setup() {
   radio.setSyncWord(0x1234);
   radio.setSyncMode(SYNC_MODE_16_16);
   radio.setCrc(true);
+  radio.setDataWhitening(true);
+  radio.setManchester(false);
+  radio.setFEC(false);
 }
 
 int counter = 0;
@@ -42,7 +45,9 @@ void loop() {
   if (status == STATUS_OK) {
     Serial.println(F("[OK]"));
   } else {
-    Serial.println(F("[ERROR]"));
+    Serial.print("[ERROR ");
+    Serial.print(status);
+    Serial.println("]");
   }
 
   delay(1000);

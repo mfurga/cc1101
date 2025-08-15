@@ -69,10 +69,11 @@ namespace CC1101 {
 enum Status {
   STATUS_OK = 0,
 
-  STATUS_LENGTH_TOO_SMALL,
-  STATUS_LENGTH_TOO_BIG,
   STATUS_INVALID_PARAM,
   STATUS_CHIP_NOT_FOUND,
+  STATUS_BAD_STATE,
+  STATUS_LENGTH_TOO_SMALL,
+  STATUS_LENGTH_TOO_BIG,
   STATUS_CRC_MISMATCH,
   STATUS_TXFIFO_UNDERFLOW,
   STATUS_RXFIFO_OVERFLOW
@@ -163,8 +164,10 @@ class Radio {
 
   void setOutputPower(int8_t power);
 
-  /* Enable CRC calculation in TX and CRC check in RX. */
   void setCrc(bool enable);
+  void setDataWhitening(bool enable);
+  Status setManchester(bool enable);
+  Status setFEC(bool enable);
   void setAddressFilteringMode(AddressFilteringMode mode);
   void setPacketLengthMode(PacketLengthMode mode, uint8_t length = 255);
   void setSyncMode(SyncMode mode);
@@ -219,6 +222,7 @@ class Radio {
   uint8_t pktLen;
   uint8_t rssi;
   uint8_t lqi;
+  bool manchester = false, fec = false;
 };
 
 }
