@@ -181,12 +181,6 @@ class Radio {
 
   void receiveCallback(void (*func)(void));
 
- private:
-  void chipSelect();
-  void chipDeselect();
-  void waitReady();
-  uint8_t waitForBytesInFifo();
-
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
   uint8_t readReg(uint8_t addr);
   void readRegBurst(uint8_t addr, uint8_t *buff, size_t size);
@@ -194,6 +188,12 @@ class Radio {
   void writeRegField(uint8_t addr, uint8_t data, uint8_t hi, uint8_t lo);
   void writeReg(uint8_t addr, uint8_t data);
   void writeRegBurst(uint8_t addr, uint8_t *data, size_t size);
+
+ private:
+  void chipSelect();
+  void chipDeselect();
+  void waitReady();
+  uint8_t waitForBytesInFifo();
 
   void sendCmd(byte addr);
 
