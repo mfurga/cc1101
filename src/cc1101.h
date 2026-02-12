@@ -20,49 +20,89 @@
 #define CC1101_VERSION            0x14
 #define CC1101_VERSION_LEGACY     0x04
 
+/* Configuration registers */
+#define CC1101_REG_IOCFG2         0x00  /* GDO2 output pin configuration */
+#define CC1101_REG_IOCFG1         0x01  /* GDO1 output pin configuration */
+#define CC1101_REG_IOCFG0         0x02  /* GDO0 output pin configuration */
+#define CC1101_REG_FIFOTHR        0x03  /* RX FIFO and TX FIFO thresholds */
+#define CC1101_REG_SYNC1          0x04  /* Sync word, high byte */
+#define CC1101_REG_SYNC0          0x05  /* Sync word, low byte */
+#define CC1101_REG_PKTLEN         0x06  /* Packet length */
+#define CC1101_REG_PKTCTRL1       0x07  /* Packet automation control */
+#define CC1101_REG_PKTCTRL0       0x08  /* Packet automation control */
+#define CC1101_REG_ADDR           0x09  /* Device address */
+#define CC1101_REG_CHANNR         0x0a  /* Channel number */
+#define CC1101_REG_FSCTRL1        0x0b  /* Frequency synthesizer control */
+#define CC1101_REG_FSCTRL0        0x0c  /* Frequency synthesizer control */
+#define CC1101_REG_FREQ2          0x0d  /* Frequency control word, high byte */
+#define CC1101_REG_FREQ1          0x0e  /* Frequency control word, middle byte */
+#define CC1101_REG_FREQ0          0x0f  /* Frequency control word, low byte */
+#define CC1101_REG_MDMCFG4        0x10  /* Modem configuration */
+#define CC1101_REG_MDMCFG3        0x11  /* Modem configuration */
+#define CC1101_REG_MDMCFG2        0x12  /* Modem configuration */
+#define CC1101_REG_MDMCFG1        0x13  /* Modem configuration */
+#define CC1101_REG_MDMCFG0        0x14  /* Modem configuration */
+#define CC1101_REG_DEVIATN        0x15  /* Modem deviation setting */
+#define CC1101_REG_MCSM2          0x16  /* Main radio control state machine configuration */
+#define CC1101_REG_MCSM1          0x17  /* Main radio control state machine configuration */
+#define CC1101_REG_MCSM0          0x18  /* Main radio control state machine configuration */
+#define CC1101_REG_FOCCFG         0x19  /* Frequency offset compensation configuration */
+#define CC1101_REG_BSCFG          0x1a  /* Bit synchronization configuration */
+#define CC1101_REG_AGCCTRL2       0x1b  /* AGC control */
+#define CC1101_REG_AGCCTRL1       0x1c  /* AGC control */
+#define CC1101_REG_AGCCTRL0       0x1d  /* AGC control */
+#define CC1101_REG_WOREVT1        0x1e  /* WOR event timeout, high byte */
+#define CC1101_REG_WOREVT0        0x1f  /* WOR event timeout, low byte */
+#define CC1101_REG_WORCTRL        0x20  /* Wake on radio control */
+#define CC1101_REG_FREND1         0x21  /* Front end RX configuration */
+#define CC1101_REG_FREND0         0x22  /* Front end TX configuration */
+#define CC1101_REG_FSCAL3         0x23  /* Frequency synthesizer calibration */
+#define CC1101_REG_FSCAL2         0x24  /* Frequency synthesizer calibration */
+#define CC1101_REG_FSCAL1         0x25  /* Frequency synthesizer calibration */
+#define CC1101_REG_FSCAL0         0x26  /* Frequency synthesizer calibration */
+#define CC1101_REG_RCCTRL1        0x27  /* RC oscillator configuration */
+#define CC1101_REG_RCCTRL0        0x28  /* RC oscillator configuration */
+#define CC1101_REG_FSTEST         0x29  /* Frequency synthesizer calibration control */
+#define CC1101_REG_PTEST          0x2a  /* Production test */
+#define CC1101_REG_AGCTEST        0x2b  /* AGC test */
+#define CC1101_REG_TEST2          0x2c  /* Various test settings */
+#define CC1101_REG_TEST1          0x2d  /* Various test settings */
+#define CC1101_REG_TEST0          0x2e  /* Various test settings */
+
+#define CC1101_REG_PATABLE        0x3e  /* PA power control */
+#define CC1101_REG_FIFO           0x3f  /* TX and RX FIFO */
+
 /* Command strobes */
 #define CC1101_CMD_RES            0x30  /* Reset chip */
+#define CC1101_CMD_FSTXON         0x31  /* Enable and calibrate frequency synthesizer */
+#define CC1101_CMD_XOFF           0x32  /* Turn off crystal oscillator */
+#define CC1101_CMD_CAL            0x33  /* Calibrate frequency synthesizer and turn it off */
 #define CC1101_CMD_RX             0x34  /* Enable RX */
 #define CC1101_CMD_TX             0x35  /* Enable TX */
 #define CC1101_CMD_IDLE           0x36  /* Enable IDLE */
+                               /* 0x37 */
+#define CC1101_CMD_WOR            0x38  /* Start automatic RX polling (Wake-on-Radio) */
+#define CC1101_CMD_PWD            0x39  /* Enter power down mode */
 #define CC1101_CMD_FRX            0x3a  /* Flush the RX FIFO buffer */
 #define CC1101_CMD_FTX            0x3b  /* Flush the TX FIFO buffer */
+#define CC1101_CMD_WORRST         0x3c  /* Reset WOR timer */
 #define CC1101_CMD_NOP            0x3d  /* No operation */
 
-/* Registers */
-#define CC1101_REG_IOCFG0         0x02
-#define CC1101_REG_SYNC1          0x04  /* Sync Word, High Byte */
-#define CC1101_REG_SYNC0          0x05  /* Sync Word, Low Byte */
-#define CC1101_REG_PKTLEN         0x06
-#define CC1101_REG_PKTCTRL1       0x07
-#define CC1101_REG_PKTCTRL0       0x08  /* Packet Automation Control */
-#define CC1101_REG_ADDR           0x09
-
-#define CC1101_REG_CHANNR         0x0a
-#define CC1101_REG_FREQ2          0x0d
-#define CC1101_REG_FREQ1          0x0e
-#define CC1101_REG_MDMCFG4        0x10
-#define CC1101_REG_MDMCFG3        0x11
-#define CC1101_REG_MDMCFG2        0x12  /* Modem Configuration */
-#define CC1101_REG_MDMCFG1        0x13
-#define CC1101_REG_MDMCFG0        0x14
-#define CC1101_REG_DEVIATN        0x15
-#define CC1101_REG_FREQ0          0x0f
-
-#define CC1101_REG_MCSM2          0x16
-#define CC1101_REG_MCSM1          0x17
-#define CC1101_REG_MCSM0          0x18
-#define CC1101_REG_FREND0         0x22  /* Front End TX Configuration */
-
-#define CC1101_REG_PATABLE        0x3e
-#define CC1101_REG_FIFO           0x3f
-
 /* Status registers */
-#define CC1101_REG_PARTNUM        0x30
-#define CC1101_REG_VERSION        0x31
-#define CC1101_REG_TXBYTES        0x3a
-#define CC1101_REG_RXBYTES        0x3b
-#define CC1101_REG_RCCTRL0_STATUS 0x3d
+#define CC1101_REG_PARTNUM        0x30  /* Chip part number */
+#define CC1101_REG_VERSION        0x31  /* Chip version number */
+#define CC1101_REG_FREQEST        0x32  /* Frequency offset estimate from demodulator */
+#define CC1101_REG_LQI            0x33  /* Demodulator estimate for link quality */
+#define CC1101_REG_RSSI           0x34  /* Received signal strength indication */
+#define CC1101_REG_MARCSTATE      0x35  /* Main radio control state machine state */
+#define CC1101_REG_WORTIME1       0x36  /* WOR time, high byte */
+#define CC1101_REG_WORTIME0       0x37  /* WOR time, low byte */
+#define CC1101_REG_PKTSTATUS      0x38  /* Current GDOx status and packet status */
+#define CC1101_REG_VCO_VC_DAC     0x39  /* Current setting from PLL calibration */
+#define CC1101_REG_TXBYTES        0x3a  /* Underflow and number of bytes in TX FIFO */
+#define CC1101_REG_RXBYTES        0x3b  /* Overflow and number of bytes in RX FIFO */
+#define CC1101_REG_RCCTRL1_STATUS 0x3c  /* Last RC oscillator calibration result */
+#define CC1101_REG_RCCTRL0_STATUS 0x3d  /* Last RC oscillator calibration result */
 
 namespace CC1101 {
 
