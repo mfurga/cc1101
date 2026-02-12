@@ -217,6 +217,47 @@ Enables/disables Forward Error Correction (FEC) with interleaving for the packet
 
 Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
 
+### Direct register access
+
+> [!WARNING]
+> Modifying register values directly may cause other library methods to work incorrectly. Use these methods only when the desired functionality is not available through the standard API. Refer to the [datasheet](https://www.ti.com/lit/ds/symlink/cc1101.pdf) and the library's source code before use to ensure the changes do not conflict with the library's internal state.
+
+#### readReg
+```cpp
+uint8_t readReg(uint8_t addr)
+```
+Reads a single register value.
+
+#### readRegField
+```cpp
+uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo)
+```
+Reads a specific bit field from a register. The `hi` and `lo` parameters specify the inclusive bit range.
+
+#### readRegBurst
+```cpp
+void readRegBurst(uint8_t addr, uint8_t *buff, size_t size)
+```
+Reads multiple consecutive registers into a buffer.
+
+#### writeReg
+```cpp
+void writeReg(uint8_t addr, uint8_t data)
+```
+Writes a single register value.
+
+#### writeRegField
+```cpp
+void writeRegField(uint8_t addr, uint8_t data, uint8_t hi, uint8_t lo)
+```
+Writes a value to a specific bit field of a register. The `hi` and `lo` parameters specify the inclusive bit range.
+
+#### writeRegBurst
+```cpp
+void writeRegBurst(uint8_t addr, uint8_t *data, size_t size)
+```
+Writes multiple consecutive registers from a buffer.
+
 ##
 
 The library was tested on the following boards:
