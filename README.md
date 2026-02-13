@@ -220,7 +220,7 @@ Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
 ### Direct register access
 
 > [!WARNING]
-> Modifying register values directly may cause other library methods to work incorrectly. Use these methods only when the desired functionality is not available through the standard API. Refer to the [datasheet](https://www.ti.com/lit/ds/symlink/cc1101.pdf) and the library's source code before use to ensure the changes do not conflict with the library's internal state.
+> The following methods are not part of the standard library API. Modifying register values directly may cause other library methods to work incorrectly. Use these methods only when the desired functionality is not available through the standard API. Refer to the [datasheet](https://www.ti.com/lit/ds/symlink/cc1101.pdf) and the library's source code before use to ensure the changes do not conflict with the library's internal state.
 
 #### readReg
 ```cpp
