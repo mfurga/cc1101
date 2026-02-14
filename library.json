@@ -1,6 +1,6 @@
 {
     "name": "CC1101",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "Arduino library for CC1101 transceiver.",
     "keywords": "arduino, radio, communication, cc1101, driver",
     "homepage": "https://github.com/mfurga/cc1101",
@@ -18,5 +18,8 @@
     "license": "MIT",
     "frameworks": ["arduino"],
     "platforms": "*",
-    "headers": "cc1101.h"
+    "headers": "cc1101.h",
+    "export": {
+        "exclude": ["assets"]
+    }
 }
