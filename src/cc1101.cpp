@@ -491,7 +491,11 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
       curPktLen = this->pktLen;
     break;
     case PKT_LEN_MODE_VARIABLE:
-      waitForBytesInFifo();
+      if (waitForBytesInFifo() == 0) {
+        setState(STATE_IDLE);
+        return currentState == STATE_RXFIFO_OVERFLOW ?
+          STATUS_RXFIFO_OVERFLOW : STATUS_TIMEOUT;
+      }
       curPktLen = readReg(CC1101_REG_FIFO);
       bytesRead++;
     break;
@@ -500,7 +504,11 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   uint8_t dataRead = 0, dataLength = curPktLen;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
-    waitForBytesInFifo();
+    if (waitForBytesInFifo() == 0) {
+      setState(STATE_IDLE);
+      return currentState == STATE_RXFIFO_OVERFLOW ?
+        STATUS_RXFIFO_OVERFLOW : STATUS_TIMEOUT;
+    }
     (void)readReg(CC1101_REG_FIFO);
     bytesRead++;
     dataLength--;
@@ -514,67 +522,106 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   /*
     For packet lengths less than 64 bytes it is recommended to wait until
     the complete packet has been received before reading it out of the RX FIFO.
+    Include the 2 appended status bytes (RSSI + CRC_OK|LQI) in the count.
   */
-  if (dataLength <= (uint8_t)(CC1101_FIFO_SIZE - bytesRead)) {
+  uint8_t totalRemaining = dataLength + 2;
+  if (totalRemaining <= (CC1101_FIFO_SIZE - bytesRead)) {
     do {
       delayMicroseconds(15);
       yield();
       bytesInFifo = waitForBytesInFifo();
-    } while (bytesInFifo < dataLength);
+      if (bytesInFifo == 0) {
+        if (currentState == STATE_RXFIFO_OVERFLOW) {
+          flushRxBuffer();
+          return STATUS_RXFIFO_OVERFLOW;
+        }
+        setState(STATE_IDLE);
+        return STATUS_TIMEOUT;
+      }
+    } while (bytesInFifo < totalRemaining);
   }
 
   while (dataRead < dataLength) {
     bytesInFifo = waitForBytesInFifo();
+    if (bytesInFifo == 0) {
+      if (currentState == STATE_RXFIFO_OVERFLOW) {
+        flushRxBuffer();
+        return STATUS_RXFIFO_OVERFLOW;
+      }
+      setState(STATE_IDLE);
+      return STATUS_TIMEOUT;
+    }
     uint8_t bytesToRead = min((uint8_t)(dataLength - dataRead), bytesInFifo);
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     bytesRead += bytesToRead;
     dataRead += bytesToRead;
 
     if (currentState == STATE_RXFIFO_OVERFLOW) {
-      ret = STATUS_RXFIFO_OVERFLOW;
       flushRxBuffer();
-      break;
+      return STATUS_RXFIFO_OVERFLOW;
     }
   }
 
-  while (getState() != STATE_IDLE) {
+  /* Read appended status bytes before waiting for IDLE. They are written
+     to the FIFO by the packet handler right after the last data byte. */
+  if (waitForBytesInFifo() == 0) {
     if (currentState == STATE_RXFIFO_OVERFLOW) {
-      ret = STATUS_RXFIFO_OVERFLOW;
       flushRxBuffer();
-      break;
+      return STATUS_RXFIFO_OVERFLOW;
     }
-    delayMicroseconds(50);
-    yield();
-  }
-
-  if (ret != STATUS_OK) {
-    return ret;
+    setState(STATE_IDLE);
+    return STATUS_TIMEOUT;
   }
 
   this->rssi = readReg(CC1101_REG_FIFO);
   uint8_t v = readReg(CC1101_REG_FIFO);
   this->lqi = v & 0x7f;
+  bool crc_ok = (v >> 7) & 1;
+
+  while (getState() != STATE_IDLE) {
+    if (currentState == STATE_RXFIFO_OVERFLOW) {
+      flushRxBuffer();
+      return STATUS_RXFIFO_OVERFLOW;
+    }
+    delayMicroseconds(50);
+    yield();
+  }
 
   flushRxBuffer();
-
-  bool crc_ok = (v >> 7) & 1;
-  if (!crc_ok) {
-    ret = STATUS_CRC_MISMATCH;
-  }
 
   if (read != nullptr) {
     *read = dataLength;
   }
 
-  return ret;
+  return crc_ok ? STATUS_OK : STATUS_CRC_MISMATCH;
 }
 
+/*
+  Read RXBYTES twice until the same value is returned, per datasheet errata.
+  A single SPI read can return a corrupt value due to synchronization issues.
+*/
+uint8_t Radio::readRxBytes() {
+  uint8_t a = readRegField(CC1101_REG_RXBYTES, 6, 0);
+  uint8_t b;
+  do {
+    b = a;
+    a = readRegField(CC1101_REG_RXBYTES, 6, 0);
+  } while (a != b);
+  return a;
+}
+
+/* Returns bytes in FIFO, or 0 on timeout / overflow. */
 uint8_t Radio::waitForBytesInFifo() {
-  uint8_t bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+  unsigned long start = millis();
+  uint8_t bytesInFifo = readRxBytes();
   while (bytesInFifo == 0) {
+    if (currentState == STATE_RXFIFO_OVERFLOW ||
+        (millis() - start > CC1101_RECV_TIMEOUT_MS)) {
+      return 0;
+    }
     delayMicroseconds(15);
     yield();
-    bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+    bytesInFifo = readRxBytes();
   }
   return bytesInFifo;
 }

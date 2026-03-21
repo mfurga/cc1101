@@ -10,6 +10,7 @@
 #define CC1101_SPI_DATA_MODE      SPI_MODE0  /* clk low, leading edge */
 
 #define CC1101_FIFO_SIZE          64    /* 64 B */
+#define CC1101_RECV_TIMEOUT_MS    5000  /* 5 s */
 #define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
 
 #define CC1101_WRITE              0x00
@@ -116,7 +117,8 @@ enum Status {
   STATUS_LENGTH_TOO_BIG,
   STATUS_CRC_MISMATCH,
   STATUS_TXFIFO_UNDERFLOW,
-  STATUS_RXFIFO_OVERFLOW
+  STATUS_RXFIFO_OVERFLOW,
+  STATUS_TIMEOUT
 };
 
 enum State {
@@ -233,6 +235,7 @@ class Radio {
   void chipSelect();
   void chipDeselect();
   void waitReady();
+  uint8_t readRxBytes();
   uint8_t waitForBytesInFifo();
 
   void sendCmd(byte addr);
