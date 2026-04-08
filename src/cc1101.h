@@ -218,7 +218,7 @@ class Radio {
   Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0);
   int8_t getRSSI();
   uint8_t getLQI();
-
+  
   void receiveCallback(void (*func)(void));
 
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
@@ -228,6 +228,8 @@ class Radio {
   void writeRegField(uint8_t addr, uint8_t data, uint8_t hi, uint8_t lo);
   void writeReg(uint8_t addr, uint8_t data);
   void writeRegBurst(uint8_t addr, uint8_t *data, size_t size);
+
+  void sleep();
 
  private:
   void chipSelect();
