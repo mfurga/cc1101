@@ -96,9 +96,9 @@ Returns
 
 #### receive
 ```cpp
-Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0)
+Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0, uint32_t timeout = 100)
 ```
-Receives the data. The `read` parameter indicates the number of bytes actually received. The `addr` parameter is used when the address filtering mode is enabled.
+Receives the data. The `read` parameter indicates the number of bytes actually received. The `addr` parameter is used when the address filtering mode is enabled. `timeout` is the time in millisecond to wait for the packets.
 
 Returns
 * `STATUS_LENGTH_TOO_BIG` if the `length` parameter is greater than 255

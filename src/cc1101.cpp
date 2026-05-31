@@ -59,8 +59,10 @@ void Radio::setRegs() {
   /* Automatically calibrate when going from IDLE to RX or TX. */
   writeRegField(CC1101_REG_MCSM0, 1, 5, 4);
 
-  /* Enable append status */
-  writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);
+
+  
+  /* /EnableDisable append status */
+  writeRegField(CC1101_REG_PKTCTRL1, CC1101_APPEND_STATUS, 2, 2);
 
   /* Disable data whitening. */
   setDataWhitening(false);
@@ -472,7 +474,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   return ret;
 }
 
-Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) {
+Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr, uint32_t timeout) {
   if (length > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
@@ -491,19 +493,43 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
       curPktLen = this->pktLen;
     break;
     case PKT_LEN_MODE_VARIABLE:
-      waitForBytesInFifo();
+    {
+      uint32_t start = millis();
+      uint8_t bytes = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      while (bytes == 0) {
+        if (timeout && (millis() - start) >= timeout) {
+          setState(STATE_IDLE);
+          return STATUS_TIMEOUT;
+        }
+        delayMicroseconds(15);
+        yield();
+        bytes = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      }
       curPktLen = readReg(CC1101_REG_FIFO);
       bytesRead++;
+    }
     break;
   }
 
   uint8_t dataRead = 0, dataLength = curPktLen;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
-    waitForBytesInFifo();
-    (void)readReg(CC1101_REG_FIFO);
+    {
+      uint32_t start = millis();
+      uint8_t bytes = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      while (bytes == 0) {
+        if (timeout && (millis() - start) >= timeout) {
+          setState(STATE_IDLE);
+          return STATUS_TIMEOUT;
+        }
+        delayMicroseconds(15);
+        yield();
+        bytes = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      }
+      (void)readReg(CC1101_REG_FIFO);
     bytesRead++;
     dataLength--;
+    }
   }
 
   if (dataLength > length) {
@@ -517,14 +543,36 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   */
   if (dataLength <= (uint8_t)(CC1101_FIFO_SIZE - bytesRead)) {
     do {
+      uint32_t start = millis();
       delayMicroseconds(15);
       yield();
-      bytesInFifo = waitForBytesInFifo();
+      bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      while (bytesInFifo == 0) {
+        if (timeout && (millis() - start) >= timeout) {
+          setState(STATE_IDLE);
+          return STATUS_TIMEOUT;
+        }
+        delayMicroseconds(15);
+        yield();
+        bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      }
     } while (bytesInFifo < dataLength);
   }
 
   while (dataRead < dataLength) {
-    bytesInFifo = waitForBytesInFifo();
+    {
+      uint32_t start = millis();
+      bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      while (bytesInFifo == 0) {
+        if (timeout && (millis() - start) >= timeout) {
+          setState(STATE_IDLE);
+          return STATUS_TIMEOUT;
+        }
+        delayMicroseconds(15);
+        yield();
+        bytesInFifo = readRegField(CC1101_REG_RXBYTES, 6, 0);
+      }
+    }
     uint8_t bytesToRead = min((uint8_t)(dataLength - dataRead), bytesInFifo);
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     bytesRead += bytesToRead;
@@ -551,10 +599,16 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     return ret;
   }
 
+  #if (CC1101_APPEND_STATUS)
   this->rssi = readReg(CC1101_REG_FIFO);
   uint8_t v = readReg(CC1101_REG_FIFO);
   this->lqi = v & 0x7f;
+  #else
+  this->rssi = readReg(CC1101_REG_RSSI);
+  uint8_t v = readReg(CC1101_REG_LQI);
+  this->lqi = v & 0x7f;
 
+  #endif
   flushRxBuffer();
 
   bool crc_ok = (v >> 7) & 1;

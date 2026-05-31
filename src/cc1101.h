@@ -20,6 +20,8 @@
 #define CC1101_VERSION            0x14
 #define CC1101_VERSION_LEGACY     0x04
 
+#define CC1101_APPEND_STATUS      0 /* Whether to append RSSI and LQI to the end of the payload. */
+
 /* Configuration registers */
 #define CC1101_REG_IOCFG2         0x00  /* GDO2 output pin configuration */
 #define CC1101_REG_IOCFG1         0x01  /* GDO1 output pin configuration */
@@ -116,7 +118,8 @@ enum Status {
   STATUS_LENGTH_TOO_BIG,
   STATUS_CRC_MISMATCH,
   STATUS_TXFIFO_UNDERFLOW,
-  STATUS_RXFIFO_OVERFLOW
+  STATUS_RXFIFO_OVERFLOW,
+  STATUS_TIMEOUT,
 };
 
 enum State {
@@ -215,7 +218,7 @@ class Radio {
   void setSyncWord(uint16_t sync);
 
   Status transmit(uint8_t *data, size_t length, uint8_t addr = 0);
-  Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0);
+  Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0, uint32_t timeout = 100);
   int8_t getRSSI();
   uint8_t getLQI();
 
@@ -253,7 +256,7 @@ class Radio {
   State currentState = STATE_IDLE;
   Modulation mod = MOD_2FSK;
   PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
-  AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_NONE;
+  AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_CHECK_BC_0;
   bool recvCallback = false;
 
   double freq = 433.5;
