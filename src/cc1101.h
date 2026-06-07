@@ -242,6 +242,7 @@ class Radio {
   void chipDeselect();
   void waitReady();
   uint8_t readRxBytes();
+  bool rxFifoOverflowed();
   uint8_t waitForBytesInFifo(uint8_t minBytes = 1);
   Status abortReceive();
 

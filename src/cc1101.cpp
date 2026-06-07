@@ -59,8 +59,13 @@ void Radio::setRegs() {
   /* Automatically calibrate when going from IDLE to RX or TX. */
   writeRegField(CC1101_REG_MCSM0, 1, 5, 4);
 
-  /* Enable append status */
-  writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);
+  /* Return to IDLE after a packet is received (MCSM1.RXOFF_MODE = IDLE) */
+  writeRegField(CC1101_REG_MCSM1, 0, 3, 2);
+
+  /* Append the 2 status bytes (RSSI + LQI/CRC_OK) to every packet and never
+     auto-flush the RX FIFO on CRC error; Both are assumptions receive() relies on. */
+  writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);  /* APPEND_STATUS = 1 */
+  writeRegField(CC1101_REG_PKTCTRL1, 0, 3, 3);  /* CRC_AUTOFLUSH = 0 */
 
   /* Disable data whitening. */
   setDataWhitening(false);
@@ -473,13 +478,10 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 }
 
 Status Radio::abortReceive() {
-  if (currentState == STATE_RXFIFO_OVERFLOW) {
-    flushRxBuffer();
-    return STATUS_RXFIFO_OVERFLOW;
-  }
+  bool overflow = rxFifoOverflowed();
   setState(STATE_IDLE);
   flushRxBuffer();
-  return STATUS_TIMEOUT;
+  return overflow ? STATUS_RXFIFO_OVERFLOW : STATUS_TIMEOUT;
 }
 
 Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) {
@@ -552,10 +554,6 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     dataRead += bytesToRead;
-
-    if (currentState == STATE_RXFIFO_OVERFLOW) {
-      return abortReceive();
-    }
   }
 
   if (waitForBytesInFifo(2) == 0) {
@@ -567,14 +565,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   this->lqi = v & 0x7f;
   bool crc_ok = (v >> 7) & 1;
 
-  while (getState() != STATE_IDLE) {
-    if (currentState == STATE_RXFIFO_OVERFLOW) {
-      return abortReceive();
-    }
-    delayMicroseconds(50);
-    yield();
-  }
-
+  setState(STATE_IDLE);
   flushRxBuffer();
 
   if (read != nullptr) {
@@ -601,19 +592,31 @@ uint8_t Radio::readRxBytes() {
   return a;
 }
 
+/*
+  Reliable RX FIFO overflow check. RXBYTES.RXFIFO_OVERFLOW is a single-bit
+  field, which the SPI read-synchronization errata (SWRZ020E) lists as immune
+  to corruption - unlike the status-byte STATE field captured on every SPI transfer.
+*/
+bool Radio::rxFifoOverflowed() {
+  return readRegField(CC1101_REG_RXBYTES, 7, 7) != 0;
+}
+
 uint8_t Radio::waitForBytesInFifo(uint8_t minBytes) {
   unsigned long start = millis();
-  uint8_t bytesInFifo = readRxBytes();
-  while (bytesInFifo < minBytes) {
-    if (currentState == STATE_RXFIFO_OVERFLOW ||
-        (millis() - start > CC1101_RECV_TIMEOUT_MS)) {
+  while (true) {
+    if (rxFifoOverflowed()) {
+      return 0;
+    }
+    uint8_t bytesInFifo = readRxBytes();
+    if (bytesInFifo >= minBytes) {
+      return bytesInFifo;
+    }
+    if (millis() - start > CC1101_RECV_TIMEOUT_MS) {
       return 0;
     }
     delayMicroseconds(15);
     yield();
-    bytesInFifo = readRxBytes();
   }
-  return bytesInFifo;
 }
 
 void Radio::receiveCallback(void (*func)(void)) {
