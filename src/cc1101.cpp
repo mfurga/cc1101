@@ -478,7 +478,6 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   }
 
   uint8_t bytesInFifo, bytesRead = 0, curPktLen = 0;
-  Status ret = STATUS_OK;
 
   writeReg(CC1101_REG_ADDR, addr);
 
@@ -532,19 +531,14 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   */
   uint16_t totalRemaining = (uint16_t)dataLength + 2;
   if (totalRemaining <= (CC1101_FIFO_SIZE - bytesRead)) {
-    do {
-      delayMicroseconds(15);
-      yield();
-      bytesInFifo = waitForBytesInFifo();
-      if (bytesInFifo == 0) {
-        if (currentState == STATE_RXFIFO_OVERFLOW) {
-          flushRxBuffer();
-          return STATUS_RXFIFO_OVERFLOW;
-        }
-        setState(STATE_IDLE);
-        return STATUS_TIMEOUT;
+    if (waitForBytesInFifo((uint8_t)totalRemaining) == 0) {
+      if (currentState == STATE_RXFIFO_OVERFLOW) {
+        flushRxBuffer();
+        return STATUS_RXFIFO_OVERFLOW;
       }
-    } while (bytesInFifo < totalRemaining);
+      setState(STATE_IDLE);
+      return STATUS_TIMEOUT;
+    }
   }
 
   while (dataRead < dataLength) {
