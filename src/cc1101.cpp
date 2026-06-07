@@ -492,9 +492,12 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     break;
     case PKT_LEN_MODE_VARIABLE:
       if (waitForBytesInFifo() == 0) {
+        if (currentState == STATE_RXFIFO_OVERFLOW) {
+          flushRxBuffer();
+          return STATUS_RXFIFO_OVERFLOW;
+        }
         setState(STATE_IDLE);
-        return currentState == STATE_RXFIFO_OVERFLOW ?
-          STATUS_RXFIFO_OVERFLOW : STATUS_TIMEOUT;
+        return STATUS_TIMEOUT;
       }
       curPktLen = readReg(CC1101_REG_FIFO);
       bytesRead++;
@@ -505,9 +508,12 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     if (waitForBytesInFifo() == 0) {
+      if (currentState == STATE_RXFIFO_OVERFLOW) {
+        flushRxBuffer();
+        return STATUS_RXFIFO_OVERFLOW;
+      }
       setState(STATE_IDLE);
-      return currentState == STATE_RXFIFO_OVERFLOW ?
-        STATUS_RXFIFO_OVERFLOW : STATUS_TIMEOUT;
+      return STATUS_TIMEOUT;
     }
     (void)readReg(CC1101_REG_FIFO);
     bytesRead++;
