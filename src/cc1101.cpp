@@ -472,6 +472,16 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   return ret;
 }
 
+Status Radio::abortReceive() {
+  if (currentState == STATE_RXFIFO_OVERFLOW) {
+    flushRxBuffer();
+    return STATUS_RXFIFO_OVERFLOW;
+  }
+  setState(STATE_IDLE);
+  flushRxBuffer();
+  return STATUS_TIMEOUT;
+}
+
 Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) {
   if (length > 255) {
     return STATUS_LENGTH_TOO_BIG;
@@ -491,12 +501,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     break;
     case PKT_LEN_MODE_VARIABLE:
       if (waitForBytesInFifo() == 0) {
-        if (currentState == STATE_RXFIFO_OVERFLOW) {
-          flushRxBuffer();
-          return STATUS_RXFIFO_OVERFLOW;
-        }
-        setState(STATE_IDLE);
-        return STATUS_TIMEOUT;
+        return abortReceive();
       }
       curPktLen = readReg(CC1101_REG_FIFO);
       bytesRead++;
@@ -507,12 +512,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     if (waitForBytesInFifo() == 0) {
-      if (currentState == STATE_RXFIFO_OVERFLOW) {
-        flushRxBuffer();
-        return STATUS_RXFIFO_OVERFLOW;
-      }
-      setState(STATE_IDLE);
-      return STATUS_TIMEOUT;
+      return abortReceive();
     }
     (void)readReg(CC1101_REG_FIFO);
     bytesRead++;
@@ -521,6 +521,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 
   if (dataLength > length) {
     setState(STATE_IDLE);
+    flushRxBuffer();
     return STATUS_LENGTH_TOO_SMALL;
   }
 
@@ -532,12 +533,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   uint16_t totalRemaining = (uint16_t)dataLength + 2;
   if (totalRemaining <= (CC1101_FIFO_SIZE - bytesRead)) {
     if (waitForBytesInFifo((uint8_t)totalRemaining) == 0) {
-      if (currentState == STATE_RXFIFO_OVERFLOW) {
-        flushRxBuffer();
-        return STATUS_RXFIFO_OVERFLOW;
-      }
-      setState(STATE_IDLE);
-      return STATUS_TIMEOUT;
+      return abortReceive();
     }
   }
 
@@ -550,12 +546,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     */
     bytesInFifo = waitForBytesInFifo(2);
     if (bytesInFifo == 0) {
-      if (currentState == STATE_RXFIFO_OVERFLOW) {
-        flushRxBuffer();
-        return STATUS_RXFIFO_OVERFLOW;
-      }
-      setState(STATE_IDLE);
-      return STATUS_TIMEOUT;
+      return abortReceive();
     }
     uint8_t bytesToRead;
     if ((uint16_t)bytesInFifo >= (uint16_t)remaining + 2) {
@@ -570,18 +561,12 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     dataRead += bytesToRead;
 
     if (currentState == STATE_RXFIFO_OVERFLOW) {
-      flushRxBuffer();
-      return STATUS_RXFIFO_OVERFLOW;
+      return abortReceive();
     }
   }
 
   if (waitForBytesInFifo(2) == 0) {
-    if (currentState == STATE_RXFIFO_OVERFLOW) {
-      flushRxBuffer();
-      return STATUS_RXFIFO_OVERFLOW;
-    }
-    setState(STATE_IDLE);
-    return STATUS_TIMEOUT;
+    return abortReceive();
   }
 
   this->rssi = readReg(CC1101_REG_FIFO);
@@ -591,8 +576,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 
   while (getState() != STATE_IDLE) {
     if (currentState == STATE_RXFIFO_OVERFLOW) {
-      flushRxBuffer();
-      return STATUS_RXFIFO_OVERFLOW;
+      return abortReceive();
     }
     delayMicroseconds(50);
     yield();
@@ -614,10 +598,13 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 uint8_t Radio::readRxBytes() {
   uint8_t a = readRegField(CC1101_REG_RXBYTES, 6, 0);
   uint8_t b;
-  do {
+  for (uint8_t i = 0; i < CC1101_RXBYTES_MAX_READS; i++) {
     b = a;
     a = readRegField(CC1101_REG_RXBYTES, 6, 0);
-  } while (a != b);
+    if (a == b) {
+      break;
+    }
+  }
   return a;
 }
 

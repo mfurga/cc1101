@@ -11,6 +11,7 @@
 
 #define CC1101_FIFO_SIZE          64    /* 64 B */
 #define CC1101_RECV_TIMEOUT_MS    5000  /* 5 s */
+#define CC1101_RXBYTES_MAX_READS  8     /* errata RXBYTES re-read cap */
 #define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
 
 #define CC1101_WRITE              0x00
@@ -237,6 +238,7 @@ class Radio {
   void waitReady();
   uint8_t readRxBytes();
   uint8_t waitForBytesInFifo(uint8_t minBytes = 1);
+  Status abortReceive();
 
   void sendCmd(byte addr);
 
