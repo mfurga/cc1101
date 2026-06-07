@@ -504,7 +504,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     headerBytes++;
   }
 
-  if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
+  if (addrFilterMode != ADDR_FILTER_MODE_NONE && dataLength > 0) {
     if (waitForBytesInFifo() == 0) {
       return abortReceive();
     }

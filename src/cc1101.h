@@ -10,9 +10,14 @@
 #define CC1101_SPI_DATA_MODE      SPI_MODE0  /* clk low, leading edge */
 
 #define CC1101_FIFO_SIZE          64    /* 64 B */
-#define CC1101_RECV_TIMEOUT_MS    5000  /* 5 s */
-#define CC1101_RXBYTES_MAX_READS  8     /* errata RXBYTES re-read cap */
 #define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
+
+#ifndef CC1101_RECV_TIMEOUT_MS
+#define CC1101_RECV_TIMEOUT_MS    5000  /* 5 s */
+#endif
+#ifndef CC1101_RXBYTES_MAX_READS
+#define CC1101_RXBYTES_MAX_READS  8     /* errata RXBYTES re-read cap */
+#endif
 
 #define CC1101_WRITE              0x00
 #define CC1101_READ               0x80
@@ -271,4 +276,3 @@ class Radio {
 };
 
 }
-
