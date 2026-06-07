@@ -71,7 +71,7 @@ void Radio::setModulation(Modulation mod) {
   writeRegField(CC1101_REG_MDMCFG2, (uint8_t)mod, 6, 4);
 
   setOutputPower(this->power);
-  
+
   if (mod == MOD_MSK || mod == MOD_4FSK) {
     setManchester(false);
   }
@@ -524,7 +524,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     the complete packet has been received before reading it out of the RX FIFO.
     Include the 2 appended status bytes (RSSI + CRC_OK|LQI) in the count.
   */
-  uint8_t totalRemaining = dataLength + 2;
+  uint16_t totalRemaining = (uint16_t)dataLength + 2;
   if (totalRemaining <= (CC1101_FIFO_SIZE - bytesRead)) {
     do {
       delayMicroseconds(15);
@@ -562,9 +562,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     }
   }
 
-  /* Read appended status bytes before waiting for IDLE. They are written
-     to the FIFO by the packet handler right after the last data byte. */
-  if (waitForBytesInFifo() == 0) {
+  if (waitForBytesInFifo(2) == 0) {
     if (currentState == STATE_RXFIFO_OVERFLOW) {
       flushRxBuffer();
       return STATUS_RXFIFO_OVERFLOW;
@@ -610,11 +608,10 @@ uint8_t Radio::readRxBytes() {
   return a;
 }
 
-/* Returns bytes in FIFO, or 0 on timeout / overflow. */
-uint8_t Radio::waitForBytesInFifo() {
+uint8_t Radio::waitForBytesInFifo(uint8_t minBytes) {
   unsigned long start = millis();
   uint8_t bytesInFifo = readRxBytes();
-  while (bytesInFifo == 0) {
+  while (bytesInFifo < minBytes) {
     if (currentState == STATE_RXFIFO_OVERFLOW ||
         (millis() - start > CC1101_RECV_TIMEOUT_MS)) {
       return 0;
