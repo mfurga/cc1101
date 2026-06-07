@@ -542,7 +542,13 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   }
 
   while (dataRead < dataLength) {
-    bytesInFifo = waitForBytesInFifo();
+    uint8_t remaining = dataLength - dataRead;
+    /*
+       Wait for at least 2 bytes. Per the datasheet the RX FIFO must never be emptied
+       before the last byte of the packet has been received, otherwise the last read
+       byte may be duplicated.
+    */
+    bytesInFifo = waitForBytesInFifo(2);
     if (bytesInFifo == 0) {
       if (currentState == STATE_RXFIFO_OVERFLOW) {
         flushRxBuffer();
@@ -551,7 +557,14 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
       setState(STATE_IDLE);
       return STATUS_TIMEOUT;
     }
-    uint8_t bytesToRead = min((uint8_t)(dataLength - dataRead), bytesInFifo);
+    uint8_t bytesToRead;
+    if ((uint16_t)bytesInFifo >= (uint16_t)remaining + 2) {
+      /* The whole packet, including the 2 appended status bytes, is already in the FIFO. */
+      bytesToRead = remaining;
+    } else {
+      /* Still receiving: read all but one of the available bytes. */
+      bytesToRead = min(remaining, (uint8_t)(bytesInFifo - 1));
+    }
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     bytesRead += bytesToRead;
     dataRead += bytesToRead;
