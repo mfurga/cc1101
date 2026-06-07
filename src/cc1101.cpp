@@ -487,35 +487,29 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     return STATUS_LENGTH_TOO_BIG;
   }
 
-  uint8_t bytesInFifo, bytesRead = 0, curPktLen = 0;
-
   writeReg(CC1101_REG_ADDR, addr);
 
   setState(STATE_IDLE);
   flushRxBuffer();
   setState(STATE_RX);
 
-  switch (pktLenMode) {
-    case PKT_LEN_MODE_FIXED:
-      curPktLen = this->pktLen;
-    break;
-    case PKT_LEN_MODE_VARIABLE:
-      if (waitForBytesInFifo() == 0) {
-        return abortReceive();
-      }
-      curPktLen = readReg(CC1101_REG_FIFO);
-      bytesRead++;
-    break;
-  }
+  uint8_t headerBytes = 0;
+  uint8_t dataLength = this->pktLen;
 
-  uint8_t dataRead = 0, dataLength = curPktLen;
+  if (pktLenMode == PKT_LEN_MODE_VARIABLE) {
+    if (waitForBytesInFifo() == 0) {
+      return abortReceive();
+    }
+    dataLength = readReg(CC1101_REG_FIFO);
+    headerBytes++;
+  }
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     if (waitForBytesInFifo() == 0) {
       return abortReceive();
     }
     (void)readReg(CC1101_REG_FIFO);
-    bytesRead++;
+    headerBytes++;
     dataLength--;
   }
 
@@ -530,34 +524,33 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     the complete packet has been received before reading it out of the RX FIFO.
     Include the 2 appended status bytes (RSSI + CRC_OK|LQI) in the count.
   */
-  uint16_t totalRemaining = (uint16_t)dataLength + 2;
-  if (totalRemaining <= (CC1101_FIFO_SIZE - bytesRead)) {
-    if (waitForBytesInFifo((uint8_t)totalRemaining) == 0) {
+  uint16_t fullPacket = (uint16_t)dataLength + 2;
+  if (fullPacket <= (CC1101_FIFO_SIZE - headerBytes)) {
+    if (waitForBytesInFifo((uint8_t)fullPacket) == 0) {
       return abortReceive();
     }
   }
 
+  uint8_t dataRead = 0;
   while (dataRead < dataLength) {
     uint8_t remaining = dataLength - dataRead;
-    /*
-       Wait for at least 2 bytes. Per the datasheet the RX FIFO must never be emptied
-       before the last byte of the packet has been received, otherwise the last read
-       byte may be duplicated.
-    */
-    bytesInFifo = waitForBytesInFifo(2);
+
+    uint8_t bytesInFifo = waitForBytesInFifo(2);
     if (bytesInFifo == 0) {
       return abortReceive();
     }
-    uint8_t bytesToRead;
-    if ((uint16_t)bytesInFifo >= (uint16_t)remaining + 2) {
-      /* The whole packet, including the 2 appended status bytes, is already in the FIFO. */
-      bytesToRead = remaining;
-    } else {
-      /* Still receiving: read all but one of the available bytes. */
-      bytesToRead = min(remaining, (uint8_t)(bytesInFifo - 1));
-    }
+
+    /*
+      Per the datasheet the RX FIFO must never be emptied before the last byte
+      of the packet has been received, otherwise the last read byte may be
+      duplicated. Keep one byte back until the whole packet (payload + the 2
+      appended status bytes) is in the FIFO.
+    */
+    bool fullPacketInFifo = (uint16_t)bytesInFifo >= (uint16_t)remaining + 2;
+    uint8_t available = fullPacketInFifo ? bytesInFifo : (uint8_t)(bytesInFifo - 1);
+    uint8_t bytesToRead = min(remaining, available);
+
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
-    bytesRead += bytesToRead;
     dataRead += bytesToRead;
 
     if (currentState == STATE_RXFIFO_OVERFLOW) {
