@@ -447,7 +447,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   setState(STATE_TX);
 
   while (dataSent < length) {
-    uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
+    uint8_t bytesInFifo = readFifoByteCount(CC1101_REG_TXBYTES);
 
     if (bytesInFifo < CC1101_FIFO_SIZE) {
       uint8_t bytesToWrite = min((uint8_t)(length - dataSent),
@@ -581,15 +581,15 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 }
 
 /*
-  Read RXBYTES twice until the same value is returned, per datasheet errata.
-  A single SPI read can return a corrupt value due to synchronization issues.
+  Read the NUM_*BYTES field of a FIFO byte-count status register repeatedly until
+  the same value is returned twice, per datasheet errata (SWRZ020E).
 */
-uint8_t Radio::readRxBytes() {
-  uint8_t a = readRegField(CC1101_REG_RXBYTES, 6, 0);
+uint8_t Radio::readFifoByteCount(uint8_t addr) {
+  uint8_t a = readRegField(addr, 6, 0);
   uint8_t b;
-  for (uint8_t i = 0; i < CC1101_RXBYTES_MAX_READS; i++) {
+  for (uint8_t i = 0; i < CC1101_FIFO_BYTES_MAX_READS; i++) {
     b = a;
-    a = readRegField(CC1101_REG_RXBYTES, 6, 0);
+    a = readRegField(addr, 6, 0);
     if (a == b) {
       break;
     }
@@ -612,7 +612,7 @@ uint8_t Radio::waitForBytesInFifo(uint8_t minBytes) {
     if (rxFifoOverflowed()) {
       return 0;
     }
-    uint8_t bytesInFifo = readRxBytes();
+    uint8_t bytesInFifo = readFifoByteCount(CC1101_REG_RXBYTES);
     if (bytesInFifo >= minBytes) {
       return bytesInFifo;
     }
