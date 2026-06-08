@@ -12,6 +12,13 @@
 #define CC1101_FIFO_SIZE          64    /* 64 B */
 #define CC1101_CRYSTAL_FREQ       26    /* 26 MHz */
 
+#ifndef CC1101_RECV_TIMEOUT_MS
+#define CC1101_RECV_TIMEOUT_MS    5000  /* 5 s */
+#endif
+#ifndef CC1101_RXBYTES_MAX_READS
+#define CC1101_RXBYTES_MAX_READS  8     /* errata RXBYTES re-read cap */
+#endif
+
 #define CC1101_WRITE              0x00
 #define CC1101_READ               0x80
 #define CC1101_BURST              0x40
@@ -116,7 +123,8 @@ enum Status {
   STATUS_LENGTH_TOO_BIG,
   STATUS_CRC_MISMATCH,
   STATUS_TXFIFO_UNDERFLOW,
-  STATUS_RXFIFO_OVERFLOW
+  STATUS_RXFIFO_OVERFLOW,
+  STATUS_TIMEOUT
 };
 
 enum State {
@@ -233,7 +241,10 @@ class Radio {
   void chipSelect();
   void chipDeselect();
   void waitReady();
-  uint8_t waitForBytesInFifo();
+  uint8_t readRxBytes();
+  bool rxFifoOverflowed();
+  uint8_t waitForBytesInFifo(uint8_t minBytes = 1);
+  Status abortReceive();
 
   void sendCmd(byte addr);
 
@@ -266,4 +277,3 @@ class Radio {
 };
 
 }
-

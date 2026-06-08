@@ -105,6 +105,7 @@ Returns
 * `STATUS_LENGTH_TOO_SMALL` if `data` buffer is too small to hold the entire packet
 * `STATUS_CRC_MISMATCH` if the received CRC does not match the calculated CRC
 * `STATUS_RXFIFO_OVERFLOW` if the RX FIFO overflows due to unread incoming data
+* `STATUS_TIMEOUT` if no complete packet is received
 
 #### getRSSI
 ```cpp
@@ -266,4 +267,3 @@ The library was tested on the following boards:
  * [Arduino Pro Mini 3.3V](https://docs.arduino.cc/retired/boards/arduino-pro-mini/)
  * [Wemos D1 Mini ESP32](https://docs.platformio.org/en/stable/boards/espressif32/wemos_d1_mini32.html)
  * [ESP32C3 Super Mini](https://www.espboards.dev/esp32/esp32-c3-super-mini/)
-
