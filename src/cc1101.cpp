@@ -395,11 +395,7 @@ Status Radio::setFEC(bool enable) {
 }
 
 int8_t Radio::getRSSI() {
-  if (this->rssi >= 128) {
-    return (((int8_t)this->rssi - 256) / 2) - 74;
-  } else {
-    return ((int8_t)this->rssi / 2) - 74;
-  }
+  return ((int8_t)this->rssi / 2) - 74;
 }
 
 uint8_t Radio::getLQI() {
