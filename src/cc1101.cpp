@@ -485,6 +485,10 @@ Status Radio::abortReceive() {
 }
 
 Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) {
+  if (read != nullptr) {
+    *read = 0;
+  }
+
   if (length > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
