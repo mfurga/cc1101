@@ -2,7 +2,7 @@
 
 #if defined(ESP32) && \
     !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
-#include "driver/gpio.h"
+#include <driver/gpio.h>
 #endif
 
 #define log2(x) (log(x) / log(2))
