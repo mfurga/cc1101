@@ -110,8 +110,8 @@ Status Radio::setFrequency(double freq) {
 Status Radio::setFrequencyDeviation(double dev) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  uint32_t devMin = (xosc / ((uint32_t)1 << 17)) * (8 + 0) * 1;
-  uint32_t devMax = (xosc / ((uint32_t)1 << 17)) * (8 + 7) * (1 << 7);
+  double devMin = (xosc / ((uint32_t)1 << 17)) * (8 + 0) * 1;
+  double devMax = (xosc / ((uint32_t)1 << 17)) * (8 + 7) * (1 << 7);
 
   if (dev < devMin || dev > devMax) {
     return STATUS_INVALID_PARAM;
@@ -144,8 +144,8 @@ void Radio::setChannel(uint8_t ch) {
 Status Radio::setChannelSpacing(double sp) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  uint32_t spMin = (xosc / (double)((uint32_t)1 << 18)) * (256. + 0.) * 1.;
-  uint32_t spMax = (xosc / (double)((uint32_t)1 << 18)) * (256. + 255.) * 8.;
+  double spMin = (xosc / (double)((uint32_t)1 << 18)) * (256. + 0.) * 1.;
+  double spMax = (xosc / (double)((uint32_t)1 << 18)) * (256. + 255.) * 8.;
 
   if (sp < spMin || sp > spMax) {
     return STATUS_INVALID_PARAM;
@@ -219,8 +219,8 @@ Status Radio::setRxBandwidth(double bw) {
 
   */
 
-  uint32_t bwMin = (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
-  uint32_t bwMax = (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
+  double bwMin = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
+  double bwMax = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
 
   if (bw < bwMin || bw > bwMax) {
     return STATUS_INVALID_PARAM;
