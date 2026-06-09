@@ -93,6 +93,7 @@ Returns
 * `STATUS_LENGTH_TOO_BIG` if `length` parameter is greater than 255, or if the `length` is greater than required in fixed packet mode
 * `STATUS_LENGTH_TOO_SMALL` if the `length` is smaller than required in fixed packet mode
 * `STATUS_TXFIFO_UNDERFLOW` if the TX FIFO buffer runs out of data during transmission
+* `STATUS_TIMEOUT` if the packet is not fully transmitted within the timeout
 
 #### receive
 ```cpp

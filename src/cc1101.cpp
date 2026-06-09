@@ -80,6 +80,16 @@ void Radio::setModulation(Modulation mod) {
   this->mod = mod;
   writeRegField(CC1101_REG_MDMCFG2, (uint8_t)mod, 6, 4);
 
+  if (mod == MOD_ASK_OOK) {
+    writeReg(CC1101_REG_AGCCTRL2, 0x07);  /* MAGN_TARGET (DN022: 0x03-0x07) */
+    writeReg(CC1101_REG_AGCCTRL1, 0x00);  /* AGC_LNA_PRIORITY = 0           */
+    writeReg(CC1101_REG_AGCCTRL0, 0x91);  /* 8 dB ASK decision boundary     */
+  } else {
+    writeReg(CC1101_REG_AGCCTRL2, 0x03);  /* reset defaults                 */
+    writeReg(CC1101_REG_AGCCTRL1, 0x40);
+    writeReg(CC1101_REG_AGCCTRL0, 0x91);
+  }
+
   setOutputPower(this->power);
 
   if (mod == MOD_MSK || mod == MOD_4FSK) {
@@ -110,8 +120,8 @@ Status Radio::setFrequency(double freq) {
 Status Radio::setFrequencyDeviation(double dev) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  uint32_t devMin = (xosc / ((uint32_t)1 << 17)) * (8 + 0) * 1;
-  uint32_t devMax = (xosc / ((uint32_t)1 << 17)) * (8 + 7) * (1 << 7);
+  double devMin = (xosc / ((uint32_t)1 << 17)) * (8 + 0) * 1;
+  double devMax = (xosc / ((uint32_t)1 << 17)) * (8 + 7) * (1 << 7);
 
   if (dev < devMin || dev > devMax) {
     return STATUS_INVALID_PARAM;
@@ -144,8 +154,8 @@ void Radio::setChannel(uint8_t ch) {
 Status Radio::setChannelSpacing(double sp) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  uint32_t spMin = (xosc / (double)((uint32_t)1 << 18)) * (256. + 0.) * 1.;
-  uint32_t spMax = (xosc / (double)((uint32_t)1 << 18)) * (256. + 255.) * 8.;
+  double spMin = (xosc / (double)((uint32_t)1 << 18)) * (256. + 0.) * 1.;
+  double spMax = (xosc / (double)((uint32_t)1 << 18)) * (256. + 255.) * 8.;
 
   if (sp < spMin || sp > spMax) {
     return STATUS_INVALID_PARAM;
@@ -219,8 +229,8 @@ Status Radio::setRxBandwidth(double bw) {
 
   */
 
-  uint32_t bwMin = (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
-  uint32_t bwMax = (CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
+  double bwMin = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
+  double bwMax = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
 
   if (bw < bwMin || bw > bwMax) {
     return STATUS_INVALID_PARAM;
@@ -395,21 +405,22 @@ Status Radio::setFEC(bool enable) {
 }
 
 int8_t Radio::getRSSI() {
-  if (this->rssi >= 128) {
-    return (((int8_t)this->rssi - 256) / 2) - 74;
-  } else {
-    return ((int8_t)this->rssi / 2) - 74;
-  }
+  return ((int8_t)this->rssi / 2) - 74;
 }
 
 uint8_t Radio::getLQI() {
   return this->lqi;
 }
 
+Status Radio::abortTransmit() {
+  bool underflow = txFifoUnderflowed();
+  setState(STATE_IDLE);
+  flushTxBuffer();
+  return underflow ? STATUS_TXFIFO_UNDERFLOW : STATUS_TIMEOUT;
+}
+
 Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
-  uint8_t bytesSent = 0, dataSent = 0;
   size_t curPktLen = length;
-  Status ret = STATUS_OK;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     curPktLen++;
@@ -419,67 +430,65 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
+  if (pktLenMode == PKT_LEN_MODE_FIXED) {
+    if (curPktLen < this->pktLen) {
+      return STATUS_LENGTH_TOO_SMALL;
+    }
+    if (curPktLen > this->pktLen) {
+      return STATUS_LENGTH_TOO_BIG;
+    }
+  }
+
   setState(STATE_IDLE);
   flushTxBuffer();
 
-  switch (pktLenMode) {
-    case PKT_LEN_MODE_FIXED:
-      if (curPktLen < this->pktLen) {
-        return STATUS_LENGTH_TOO_SMALL;
-      }
+  uint8_t headerBytes = 0;
 
-      if (curPktLen > this->pktLen) {
-        return STATUS_LENGTH_TOO_BIG;
-      }
-    break;
-    case PKT_LEN_MODE_VARIABLE:
-      writeReg(CC1101_REG_FIFO, (uint8_t)curPktLen);
-      bytesSent++;
-    break;
+  if (pktLenMode == PKT_LEN_MODE_VARIABLE) {
+    writeReg(CC1101_REG_FIFO, (uint8_t)curPktLen);
+    headerBytes++;
   }
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     writeReg(CC1101_REG_FIFO, addr);
-    bytesSent++;
+    headerBytes++;
   }
 
-  uint8_t l = min((uint8_t)length, (uint8_t)(CC1101_FIFO_SIZE - bytesSent));
-  writeRegBurst(CC1101_REG_FIFO, data, l);
-  bytesSent += l;
-  dataSent += l;
+  /*
+    Fill the FIFO with the first chunk of payload (after the header bytes) and
+    start transmitting, then keep topping it up as the chip drains it.
+  */
+  uint8_t firstChunk = min((uint8_t)length, (uint8_t)(CC1101_FIFO_SIZE - headerBytes));
+  writeRegBurst(CC1101_REG_FIFO, data, firstChunk);
+  size_t dataWritten = firstChunk;
 
   setState(STATE_TX);
 
-  while (dataSent < length) {
-    uint8_t bytesInFifo = readRegField(CC1101_REG_TXBYTES, 6, 0);
-
-    if (bytesInFifo < CC1101_FIFO_SIZE) {
-      uint8_t bytesToWrite = min((uint8_t)(length - dataSent),
-                                 (uint8_t)(CC1101_FIFO_SIZE - bytesInFifo));
-      writeRegBurst(CC1101_REG_FIFO, data + dataSent, bytesToWrite);
-      bytesSent += bytesToWrite;
-      dataSent += bytesToWrite;
+  while (dataWritten < length) {
+    uint8_t spaceInFifo = waitForSpaceInFifo(1);
+    if (spaceInFifo == 0) {
+      return abortTransmit();
     }
 
-    if (currentState == STATE_TXFIFO_UNDERFLOW) {
-      ret = STATUS_TXFIFO_UNDERFLOW;
-      flushTxBuffer();
-      break;
-    }
-
-    yield();
+    uint8_t bytesToWrite = min((uint8_t)(length - dataWritten), spaceInFifo);
+    writeRegBurst(CC1101_REG_FIFO, data + dataWritten, bytesToWrite);
+    dataWritten += bytesToWrite;
   }
 
+  /*
+    The whole packet is in the FIFO; wait for the chip to transmit it and
+    return to IDLE on its own (MCSM1.TXOFF_MODE = IDLE).
+  */
+  unsigned long start = millis();
   while (getState() != STATE_IDLE) {
-    if (currentState == STATE_TXFIFO_UNDERFLOW) {
-      ret = STATUS_TXFIFO_UNDERFLOW;
-      flushTxBuffer();
+    if (txFifoUnderflowed() || millis() - start > CC1101_XMIT_TIMEOUT_MS) {
+      return abortTransmit();
     }
     delayMicroseconds(50);
     yield();
   }
 
-  return ret;
+  return STATUS_OK;
 }
 
 Status Radio::abortReceive() {
@@ -585,15 +594,15 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 }
 
 /*
-  Read RXBYTES twice until the same value is returned, per datasheet errata.
-  A single SPI read can return a corrupt value due to synchronization issues.
+  Read the NUM_*BYTES field of a FIFO byte-count status register repeatedly until
+  the same value is returned twice, per datasheet errata (SWRZ020E).
 */
-uint8_t Radio::readRxBytes() {
-  uint8_t a = readRegField(CC1101_REG_RXBYTES, 6, 0);
+uint8_t Radio::readFifoByteCount(uint8_t addr) {
+  uint8_t a = readRegField(addr, 6, 0);
   uint8_t b;
-  for (uint8_t i = 0; i < CC1101_RXBYTES_MAX_READS; i++) {
+  for (uint8_t i = 0; i < CC1101_FIFO_BYTES_MAX_READS; i++) {
     b = a;
-    a = readRegField(CC1101_REG_RXBYTES, 6, 0);
+    a = readRegField(addr, 6, 0);
     if (a == b) {
       break;
     }
@@ -616,11 +625,36 @@ uint8_t Radio::waitForBytesInFifo(uint8_t minBytes) {
     if (rxFifoOverflowed()) {
       return 0;
     }
-    uint8_t bytesInFifo = readRxBytes();
+    uint8_t bytesInFifo = readFifoByteCount(CC1101_REG_RXBYTES);
     if (bytesInFifo >= minBytes) {
       return bytesInFifo;
     }
     if (millis() - start > CC1101_RECV_TIMEOUT_MS) {
+      return 0;
+    }
+    delayMicroseconds(15);
+    yield();
+  }
+}
+
+/* Same as rxFifoOverflowed() */
+bool Radio::txFifoUnderflowed() {
+  return readRegField(CC1101_REG_TXBYTES, 7, 7) != 0;
+}
+
+uint8_t Radio::waitForSpaceInFifo(uint8_t minSpace) {
+  unsigned long start = millis();
+  while (true) {
+    if (txFifoUnderflowed()) {
+      return 0;
+    }
+    uint8_t bytesInFifo = readFifoByteCount(CC1101_REG_TXBYTES);
+    uint8_t spaceInFifo =
+        (bytesInFifo >= CC1101_FIFO_SIZE) ? 0 : (CC1101_FIFO_SIZE - bytesInFifo);
+    if (spaceInFifo >= minSpace) {
+      return spaceInFifo;
+    }
+    if (millis() - start > CC1101_XMIT_TIMEOUT_MS) {
       return 0;
     }
     delayMicroseconds(15);
