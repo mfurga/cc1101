@@ -15,6 +15,9 @@
 #ifndef CC1101_RECV_TIMEOUT_MS
 #define CC1101_RECV_TIMEOUT_MS    5000  /* 5 s */
 #endif
+#ifndef CC1101_XMIT_TIMEOUT_MS
+#define CC1101_XMIT_TIMEOUT_MS    5000  /* 5 s */
+#endif
 #ifndef CC1101_FIFO_BYTES_MAX_READS
 #define CC1101_FIFO_BYTES_MAX_READS 8   /* errata RX/TXBYTES re-read cap */
 #endif
@@ -243,8 +246,11 @@ class Radio {
   void waitReady();
   uint8_t readFifoByteCount(uint8_t addr);
   bool rxFifoOverflowed();
+  bool txFifoUnderflowed();
   uint8_t waitForBytesInFifo(uint8_t minBytes = 1);
+  uint8_t waitForSpaceInFifo(uint8_t minSpace = 1);
   Status abortReceive();
+  Status abortTransmit();
 
   void sendCmd(byte addr);
 

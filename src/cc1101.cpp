@@ -402,10 +402,15 @@ uint8_t Radio::getLQI() {
   return this->lqi;
 }
 
+Status Radio::abortTransmit() {
+  bool underflow = txFifoUnderflowed();
+  setState(STATE_IDLE);
+  flushTxBuffer();
+  return underflow ? STATUS_TXFIFO_UNDERFLOW : STATUS_TIMEOUT;
+}
+
 Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
-  uint8_t bytesSent = 0, dataSent = 0;
   size_t curPktLen = length;
-  Status ret = STATUS_OK;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     curPktLen++;
@@ -415,67 +420,65 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
     return STATUS_LENGTH_TOO_BIG;
   }
 
+  if (pktLenMode == PKT_LEN_MODE_FIXED) {
+    if (curPktLen < this->pktLen) {
+      return STATUS_LENGTH_TOO_SMALL;
+    }
+    if (curPktLen > this->pktLen) {
+      return STATUS_LENGTH_TOO_BIG;
+    }
+  }
+
   setState(STATE_IDLE);
   flushTxBuffer();
 
-  switch (pktLenMode) {
-    case PKT_LEN_MODE_FIXED:
-      if (curPktLen < this->pktLen) {
-        return STATUS_LENGTH_TOO_SMALL;
-      }
+  uint8_t headerBytes = 0;
 
-      if (curPktLen > this->pktLen) {
-        return STATUS_LENGTH_TOO_BIG;
-      }
-    break;
-    case PKT_LEN_MODE_VARIABLE:
-      writeReg(CC1101_REG_FIFO, (uint8_t)curPktLen);
-      bytesSent++;
-    break;
+  if (pktLenMode == PKT_LEN_MODE_VARIABLE) {
+    writeReg(CC1101_REG_FIFO, (uint8_t)curPktLen);
+    headerBytes++;
   }
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
     writeReg(CC1101_REG_FIFO, addr);
-    bytesSent++;
+    headerBytes++;
   }
 
-  uint8_t l = min((uint8_t)length, (uint8_t)(CC1101_FIFO_SIZE - bytesSent));
-  writeRegBurst(CC1101_REG_FIFO, data, l);
-  bytesSent += l;
-  dataSent += l;
+  /*
+    Fill the FIFO with the first chunk of payload (after the header bytes) and
+    start transmitting, then keep topping it up as the chip drains it.
+  */
+  uint8_t firstChunk = min((uint8_t)length, (uint8_t)(CC1101_FIFO_SIZE - headerBytes));
+  writeRegBurst(CC1101_REG_FIFO, data, firstChunk);
+  size_t dataWritten = firstChunk;
 
   setState(STATE_TX);
 
-  while (dataSent < length) {
-    uint8_t bytesInFifo = readFifoByteCount(CC1101_REG_TXBYTES);
-
-    if (bytesInFifo < CC1101_FIFO_SIZE) {
-      uint8_t bytesToWrite = min((uint8_t)(length - dataSent),
-                                 (uint8_t)(CC1101_FIFO_SIZE - bytesInFifo));
-      writeRegBurst(CC1101_REG_FIFO, data + dataSent, bytesToWrite);
-      bytesSent += bytesToWrite;
-      dataSent += bytesToWrite;
+  while (dataWritten < length) {
+    uint8_t spaceInFifo = waitForSpaceInFifo(1);
+    if (spaceInFifo == 0) {
+      return abortTransmit();
     }
 
-    if (currentState == STATE_TXFIFO_UNDERFLOW) {
-      ret = STATUS_TXFIFO_UNDERFLOW;
-      flushTxBuffer();
-      break;
-    }
-
-    yield();
+    uint8_t bytesToWrite = min((uint8_t)(length - dataWritten), spaceInFifo);
+    writeRegBurst(CC1101_REG_FIFO, data + dataWritten, bytesToWrite);
+    dataWritten += bytesToWrite;
   }
 
+  /*
+    The whole packet is in the FIFO; wait for the chip to transmit it and
+    return to IDLE on its own (MCSM1.TXOFF_MODE = IDLE).
+  */
+  unsigned long start = millis();
   while (getState() != STATE_IDLE) {
-    if (currentState == STATE_TXFIFO_UNDERFLOW) {
-      ret = STATUS_TXFIFO_UNDERFLOW;
-      flushTxBuffer();
+    if (txFifoUnderflowed() || millis() - start > CC1101_XMIT_TIMEOUT_MS) {
+      return abortTransmit();
     }
     delayMicroseconds(50);
     yield();
   }
 
-  return ret;
+  return STATUS_OK;
 }
 
 Status Radio::abortReceive() {
@@ -617,6 +620,31 @@ uint8_t Radio::waitForBytesInFifo(uint8_t minBytes) {
       return bytesInFifo;
     }
     if (millis() - start > CC1101_RECV_TIMEOUT_MS) {
+      return 0;
+    }
+    delayMicroseconds(15);
+    yield();
+  }
+}
+
+/* Same as rxFifoOverflowed() */
+bool Radio::txFifoUnderflowed() {
+  return readRegField(CC1101_REG_TXBYTES, 7, 7) != 0;
+}
+
+uint8_t Radio::waitForSpaceInFifo(uint8_t minSpace) {
+  unsigned long start = millis();
+  while (true) {
+    if (txFifoUnderflowed()) {
+      return 0;
+    }
+    uint8_t bytesInFifo = readFifoByteCount(CC1101_REG_TXBYTES);
+    uint8_t spaceInFifo =
+        (bytesInFifo >= CC1101_FIFO_SIZE) ? 0 : (CC1101_FIFO_SIZE - bytesInFifo);
+    if (spaceInFifo >= minSpace) {
+      return spaceInFifo;
+    }
+    if (millis() - start > CC1101_XMIT_TIMEOUT_MS) {
       return 0;
     }
     delayMicroseconds(15);
