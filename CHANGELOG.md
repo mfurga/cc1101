@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.3.0] - 2026-06-09
+
+### Added
+- `STATUS_TIMEOUT` status code, returned by `receive()` and `transmit()` on timeout.
+
+### Fixed
+- `receive()` and `transmit()` no longer hang, and handle the RX/TX FIFO as the errata (SWRZ020E) requires.
+- `getRSSI()` returned wrong values for raw readings of 128 or more.
+- Frequency deviation, channel spacing and RX bandwidth ranges are now validated correctly.
+- OOK/ASK reception uses the AGC settings from DN022; the FSK defaults are not optimal for OOK.
+- Avoid a `digitalRead()` warning on ESP32 with a custom MISO pin.
+
 ## [1.2.2] - 2026-02-14
 
 ### Changed
@@ -93,6 +105,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blocking receive and a receive callback.
 - Transmit and receive examples, plus Arduino / PlatformIO packaging.
 
+[1.3.0]: https://github.com/mfurga/cc1101/compare/1.2.2...1.3.0
 [1.2.2]: https://github.com/mfurga/cc1101/compare/1.2.1...1.2.2
 [1.2.1]: https://github.com/mfurga/cc1101/compare/1.2.0...1.2.1
 [1.2.0]: https://github.com/mfurga/cc1101/compare/1.1.5...1.2.0
