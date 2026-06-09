@@ -80,6 +80,16 @@ void Radio::setModulation(Modulation mod) {
   this->mod = mod;
   writeRegField(CC1101_REG_MDMCFG2, (uint8_t)mod, 6, 4);
 
+  if (mod == MOD_ASK_OOK) {
+    writeReg(CC1101_REG_AGCCTRL2, 0x07);  /* MAGN_TARGET (DN022: 0x03-0x07) */
+    writeReg(CC1101_REG_AGCCTRL1, 0x00);  /* AGC_LNA_PRIORITY = 0           */
+    writeReg(CC1101_REG_AGCCTRL0, 0x91);  /* 8 dB ASK decision boundary     */
+  } else {
+    writeReg(CC1101_REG_AGCCTRL2, 0x03);  /* reset defaults                 */
+    writeReg(CC1101_REG_AGCCTRL1, 0x40);
+    writeReg(CC1101_REG_AGCCTRL0, 0x91);
+  }
+
   setOutputPower(this->power);
 
   if (mod == MOD_MSK || mod == MOD_4FSK) {
