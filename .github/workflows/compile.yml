@@ -1,0 +1,104 @@
+name: Compile
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "examples/**"
+      - "library.properties"
+      - "library.json"
+      - ".github/workflows/compile.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "examples/**"
+      - "library.properties"
+      - "library.json"
+      - ".github/workflows/compile.yml"
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: arduino-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/arduino-lint-action@v2
+        with:
+          project-type: library
+          library-manager: update
+          compliance: strict
+
+  compile:
+    name: ${{ matrix.board.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - name: avr-mega
+            fqbn: "arduino:avr:mega"
+            platforms: |
+              - name: arduino:avr
+            # The AVR core compiles warning-free, so warnings in the
+            # library itself can hard-fail the build here.
+            cli-compile-flags: |
+              - --warnings
+              - all
+              - --build-property
+              - compiler.cpp.extra_flags=-Werror
+          - name: esp32
+            fqbn: "esp32:esp32:esp32"
+            platforms: |
+              - name: esp32:esp32
+                source-url: https://espressif.github.io/arduino-esp32/package_esp32_index.json
+            cli-compile-flags: |
+              - --warnings
+              - all
+          - name: esp8266
+            fqbn: "esp8266:esp8266:generic"
+            platforms: |
+              - name: esp8266:esp8266
+                source-url: https://arduino.esp8266.com/stable/package_esp8266com_index.json
+            cli-compile-flags: |
+              - --warnings
+              - all
+          - name: rp2040-pico
+            fqbn: "rp2040:rp2040:rpipico"
+            platforms: |
+              - name: rp2040:rp2040
+                source-url: https://github.com/earlephilhower/arduino-pico/releases/download/global/package_rp2040_index.json
+            cli-compile-flags: |
+              - --warnings
+              - all
+          - name: teensy41
+            fqbn: "teensy:avr:teensy41"
+            platforms: |
+              - name: teensy:avr
+                source-url: https://www.pjrc.com/teensy/package_teensy_index.json
+            cli-compile-flags: |
+              - --warnings
+              - all
+          - name: stm32-nucleo64
+            fqbn: "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F401RE"
+            platforms: |
+              - name: STMicroelectronics:stm32
+                source-url: https://raw.githubusercontent.com/stm32duino/BoardManagerFiles/main/package_stmicroelectronics_index.json
+            cli-compile-flags: |
+              - --warnings
+              - all
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile examples
+        uses: arduino/compile-sketches@v1
+        with:
+          fqbn: ${{ matrix.board.fqbn }}
+          platforms: ${{ matrix.board.platforms }}
+          libraries: |
+            - source-path: ./
+          sketch-paths: |
+            - examples
+          cli-compile-flags: ${{ matrix.board.cli-compile-flags }}
+          enable-deltas-report: false
+          verbose: false
