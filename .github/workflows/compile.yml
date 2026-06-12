@@ -42,6 +42,10 @@ jobs:
             cli-compile-flags: |
               - --warnings
               - all
+              - --build-property
+              - compiler.cpp.extra_flags=-Werror
+              - --build-property
+              - compiler.warning_flags.all=-Wall -Wextra -Werror=unused-variable -Werror=unused-function -Werror=unused-but-set-variable -Werror=deprecated-declarations -Wno-error=unused-parameter -Wno-error=sign-compare
           - name: esp8266
             fqbn: "esp8266:esp8266:generic"
             platforms: |
@@ -50,6 +54,8 @@ jobs:
             cli-compile-flags: |
               - --warnings
               - all
+              - --build-property
+              - compiler.cpp.extra_flags=-Werror
           - name: rp2040-pico
             fqbn: "rp2040:rp2040:rpipico"
             platforms: |
@@ -58,14 +64,16 @@ jobs:
             cli-compile-flags: |
               - --warnings
               - all
+              - --build-property
+              - compiler.cpp.extra_flags=-Werror
           - name: teensy41
             fqbn: "teensy:avr:teensy41"
             platforms: |
               - name: teensy:avr
                 source-url: https://www.pjrc.com/teensy/package_teensy_index.json
             cli-compile-flags: |
-              - --warnings
-              - all
+              - --build-property
+              - build.flags.dep=-MMD -Werror
           - name: stm32-nucleo64
             fqbn: "STMicroelectronics:stm32:Nucleo_64:pnum=NUCLEO_F401RE"
             platforms: |
@@ -74,6 +82,8 @@ jobs:
             cli-compile-flags: |
               - --warnings
               - all
+              - --build-property
+              - compiler.cpp.extra_flags=-Werror
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Compile examples
