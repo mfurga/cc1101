@@ -31,7 +31,7 @@ jobs:
               - name: arduino:avr
             cli-compile-flags: |
               - --warnings
-              - all
+              - more
               - --build-property
               - compiler.cpp.extra_flags=-Werror
           - name: esp32
