@@ -545,7 +545,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     Include the 2 appended status bytes (RSSI + CRC_OK|LQI) in the count.
   */
   uint16_t fullPacket = (uint16_t)dataLength + 2;
-  if (fullPacket <= (CC1101_FIFO_SIZE - headerBytes)) {
+  if (fullPacket <= (uint16_t)(CC1101_FIFO_SIZE - headerBytes)) {
     if (waitForBytesInFifo((uint8_t)fullPacket) == 0) {
       return abortReceive();
     }
