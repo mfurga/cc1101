@@ -166,7 +166,7 @@ enum SyncMode {
 enum PacketLengthMode {
   PKT_LEN_MODE_FIXED    = 0,  /* Length configured in PKTLEN register */
   PKT_LEN_MODE_VARIABLE = 1,  /* Packet length put in the first byte */
-  // TODO: PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
+  // TODO(mfurga): PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
 };
 
 enum AddressFilteringMode {
@@ -179,8 +179,8 @@ enum AddressFilteringMode {
 class Radio {
  public:
 #ifdef ESP32
-  Radio(uint8_t cs, uint8_t clk = PIN_UNUSED, uint8_t miso = PIN_UNUSED,
-        uint8_t mosi = PIN_UNUSED, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
+  explicit Radio(uint8_t cs, uint8_t clk = PIN_UNUSED, uint8_t miso = PIN_UNUSED,
+                 uint8_t mosi = PIN_UNUSED, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
     : cs(cs),
       gd0(gd0),
       gd2(gd2),
@@ -192,7 +192,7 @@ class Radio {
                   CC1101_SPI_DATA_MODE) {}
 
 #else
-  Radio(uint8_t cs, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
+  explicit Radio(uint8_t cs, uint8_t gd0 = PIN_UNUSED, uint8_t gd2 = PIN_UNUSED)
     : cs(cs),
       gd0(gd0),
       gd2(gd2),
@@ -284,5 +284,4 @@ class Radio {
   uint8_t lqi;
   bool manchester = false, fec = false;
 };
-
-}
+}  // namespace CC1101

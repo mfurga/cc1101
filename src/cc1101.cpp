@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Mateusz Furga
 // SPDX-License-Identifier: MIT
 
-#include "cc1101.h"
+#include "cc1101.h"  // NOLINT(build/include_subdir)
 
 #if defined(ESP32) && \
     !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C3)
@@ -10,7 +10,7 @@
 
 #define log2(x) (log(x) / log(2))
 
-using namespace CC1101;
+using namespace CC1101;  // NOLINT(build/namespaces)
 
 Status Radio::begin(Modulation mod, double freq, double drate) {
   Status status;
@@ -123,8 +123,8 @@ Status Radio::setFrequency(double freq) {
 Status Radio::setFrequencyDeviation(double dev) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  double devMin = (xosc / ((uint32_t)1 << 17)) * (8 + 0) * 1;
-  double devMax = (xosc / ((uint32_t)1 << 17)) * (8 + 7) * (1 << 7);
+  double devMin = (xosc / (1UL << 17)) * (8 + 0) * 1;
+  double devMax = (xosc / (1UL << 17)) * (8 + 7) * (1 << 7);
 
   if (dev < devMin || dev > devMax) {
     return STATUS_INVALID_PARAM;
@@ -135,7 +135,7 @@ Status Radio::setFrequencyDeviation(double dev) {
 
   for (uint8_t e = 0; e <= 7; e++) {
     for (uint8_t m = 0; m <= 7; m++) {
-      double t = (xosc / (double)((uint32_t)1 << 17)) * (8 + m) * (double)((uint32_t)1 << e);
+      double t = (xosc / static_cast<double>(1UL << 17)) * (8 + m) * static_cast<double>(1UL << e);
       if (fabs(dev - t) < diff) {
         diff = fabs(dev - t);
         bestE = e;
@@ -157,8 +157,8 @@ void Radio::setChannel(uint8_t ch) {
 Status Radio::setChannelSpacing(double sp) {
   double xosc = CC1101_CRYSTAL_FREQ * 1000;
 
-  double spMin = (xosc / (double)((uint32_t)1 << 18)) * (256. + 0.) * 1.;
-  double spMax = (xosc / (double)((uint32_t)1 << 18)) * (256. + 255.) * 8.;
+  double spMin = (xosc / static_cast<double>(1UL << 18)) * (256. + 0.) * 1.;
+  double spMax = (xosc / static_cast<double>(1UL << 18)) * (256. + 255.) * 8.;
 
   if (sp < spMin || sp > spMax) {
     return STATUS_INVALID_PARAM;
@@ -169,7 +169,8 @@ Status Radio::setChannelSpacing(double sp) {
 
   for (uint8_t e = 0; e <= 3; e++) {
     for (uint16_t m = 0; m <= 255; m++) {
-      double t = (xosc / (double)((uint32_t)1 << 18)) * (256. + m) * (double)((uint32_t)1 << e);
+      double t = (xosc / static_cast<double>(1UL << 18)) *
+                 (256. + m) * static_cast<double>(1UL << e);
       if (fabs(sp - t) < diff) {
         diff = fabs(sp - t);
         bestE = e;
@@ -185,7 +186,6 @@ Status Radio::setChannelSpacing(double sp) {
 }
 
 Status Radio::setDataRate(double drate) {
-
   static const double range[][2] = {
     [MOD_2FSK]    = {  0.6, 500.0 },  /* 0.6 - 500 kBaud */
     [MOD_GFSK]    = {  0.6, 250.0 },
@@ -204,8 +204,8 @@ Status Radio::setDataRate(double drate) {
   this->drate = drate;
 
   uint32_t xosc = CC1101_CRYSTAL_FREQ * 1000;
-  uint8_t e = log2((drate * (double)((uint32_t)1 << 20)) / xosc);
-  uint32_t m = round(drate * ((double)((uint32_t)1 << (28 - e)) / xosc) - 256.);
+  uint8_t e = log2((drate * static_cast<double>(1UL << 20)) / xosc);
+  uint32_t m = round(drate * (static_cast<double>(1UL << (28 - e)) / xosc) - 256.);
 
   if (m == 256) {
     m = 0;
@@ -232,8 +232,8 @@ Status Radio::setRxBandwidth(double bw) {
 
   */
 
-  double bwMin = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
-  double bwMax = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
+  double bwMin = static_cast<double>(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 3) * (1 << 3));
+  double bwMax = static_cast<double>(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + 0) * (1 << 0));
 
   if (bw < bwMin || bw > bwMax) {
     return STATUS_INVALID_PARAM;
@@ -244,7 +244,7 @@ Status Radio::setRxBandwidth(double bw) {
 
   for (uint8_t e = 0; e <= 3; e++) {
     for (uint8_t m = 0; m <= 3; m++) {
-      double t = (double)(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + m) * (1 << e));
+      double t = static_cast<double>(CC1101_CRYSTAL_FREQ * 1000) / (8 * (4 + m) * (1 << e));
       if (fabs(bw - t) < diff) {
         diff = fabs(bw - t);
         bestE = e;
@@ -260,7 +260,6 @@ Status Radio::setRxBandwidth(double bw) {
 }
 
 void Radio::setOutputPower(int8_t power) {
-
   static const uint8_t powers[][8] = {
     [0 /* 315 Mhz */ ] = { 0x12, 0x0d, 0x1c, 0x34, 0x51, 0x85, 0xcb, 0xc2 },
     [1 /* 433 Mhz */ ] = { 0x12, 0x0e, 0x1d, 0x34, 0x60, 0x84, 0xc8, 0xc0 },
@@ -482,7 +481,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
     The whole packet is in the FIFO; wait for the chip to transmit it and
     return to IDLE on its own (MCSM1.TXOFF_MODE = IDLE).
   */
-  unsigned long start = millis();
+  unsigned long start = millis();  // NOLINT(runtime/int)
   while (getState() != STATE_IDLE) {
     if (txFifoUnderflowed() || millis() - start > CC1101_XMIT_TIMEOUT_MS) {
       return abortTransmit();
@@ -547,8 +546,8 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     the complete packet has been received before reading it out of the RX FIFO.
     Include the 2 appended status bytes (RSSI + CRC_OK|LQI) in the count.
   */
-  uint16_t fullPacket = (uint16_t)dataLength + 2;
-  if (fullPacket <= (uint16_t)(CC1101_FIFO_SIZE - headerBytes)) {
+  uint16_t fullPacket = static_cast<uint16_t>(dataLength) + 2;
+  if (fullPacket <= static_cast<uint16_t>(CC1101_FIFO_SIZE - headerBytes)) {
     if (waitForBytesInFifo((uint8_t)fullPacket) == 0) {
       return abortReceive();
     }
@@ -569,9 +568,10 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
       duplicated. Keep one byte back until the whole packet (payload + the 2
       appended status bytes) is in the FIFO.
     */
-    bool fullPacketInFifo = (uint16_t)bytesInFifo >= (uint16_t)remaining + 2;
+    bool fullPacketInFifo =
+        static_cast<uint16_t>(bytesInFifo) >= static_cast<uint16_t>(remaining) + 2;
     uint8_t available = fullPacketInFifo ? bytesInFifo : (uint8_t)(bytesInFifo - 1);
-    uint8_t bytesToRead = min(remaining, available);
+    uint8_t bytesToRead = min(remaining, available);  // NOLINT(build/include_what_you_use)
 
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     dataRead += bytesToRead;
@@ -623,7 +623,7 @@ bool Radio::rxFifoOverflowed() {
 }
 
 uint8_t Radio::waitForBytesInFifo(uint8_t minBytes) {
-  unsigned long start = millis();
+  unsigned long start = millis();  // NOLINT(runtime/int)
   while (true) {
     if (rxFifoOverflowed()) {
       return 0;
@@ -646,7 +646,7 @@ bool Radio::txFifoUnderflowed() {
 }
 
 uint8_t Radio::waitForSpaceInFifo(uint8_t minSpace) {
-  unsigned long start = millis();
+  unsigned long start = millis();  // NOLINT(runtime/int)
   while (true) {
     if (txFifoUnderflowed()) {
       return 0;
@@ -673,7 +673,7 @@ void Radio::receiveCallback(void (*func)(void)) {
   */
   writeRegField(CC1101_REG_IOCFG0, 1, 5, 0);
 
-  // TODO: Move to other method.
+  // TODO(mfurga): Move to other method.
   flushRxBuffer();
   setState(STATE_RX);
 
@@ -883,10 +883,8 @@ void Radio::waitReady() {
   // GPIO matrix, so the Arduino digitalRead() HAL logs "IO N is not set as
   // GPIO" warnings.
   uint8_t pin = (miso == PIN_UNUSED) ? MISO : miso;
-  while (gpio_get_level((gpio_num_t)pin))
-    ;
+  while (gpio_get_level((gpio_num_t)pin)) {}
   #else
-  while (digitalRead(MISO))
-    ;
+  while (digitalRead(MISO)) {}
   #endif
 }

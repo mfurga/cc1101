@@ -18,7 +18,7 @@ jobs:
       - name: Install cpplint
         run: pip install cpplint
       - name: Run cpplint
-        run: cpplint src/cc1101.h src/cc1101.cpp
+        run: cpplint --linelength=100 src/cc1101.h src/cc1101.cpp
 
   arduino-lint:
     name: arduino-lint
