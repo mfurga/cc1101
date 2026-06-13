@@ -20,6 +20,6 @@
     "platforms": "*",
     "headers": "cc1101.h",
     "export": {
-        "exclude": ["assets"]
+        "exclude": [".github"]
     }
 }
