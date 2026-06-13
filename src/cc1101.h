@@ -1,3 +1,6 @@
+// Copyright (c) 2023 Mateusz Furga
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include <Arduino.h>
