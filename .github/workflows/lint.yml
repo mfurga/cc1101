@@ -1,0 +1,32 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  cpplint:
+    name: cpplint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: "3.x"
+      - name: Install cpplint
+        run: pip install cpplint
+      - name: Run cpplint
+        run: cpplint src/cc1101.h src/cc1101.cpp
+
+  arduino-lint:
+    name: arduino-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - name: Run arduino-lint
+        uses: arduino/arduino-lint-action@a7db01426f4d1017dda295ffc4de4ab72b8e0130 # v2.0.0
+        with:
+          library-manager: update
+          compliance: specification
