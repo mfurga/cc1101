@@ -87,3 +87,16 @@ jobs:
           cli-compile-flags: ${{ matrix.board.cli-compile-flags }}
           enable-deltas-report: false
           verbose: false
+
+  check-status:
+    name: Compile
+    needs: compile
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Fail if any compile job failed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more compile jobs failed or were cancelled"
+            exit 1
+          fi
