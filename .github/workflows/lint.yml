@@ -30,3 +30,16 @@ jobs:
         with:
           library-manager: update
           compliance: specification
+
+  check-status:
+    name: Lint
+    needs: [cpplint, arduino-lint]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Fail if any lint job failed
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more lint jobs failed or were cancelled"
+            exit 1
+          fi
