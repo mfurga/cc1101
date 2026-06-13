@@ -124,8 +124,7 @@ Returns LQI (Link Quality Indicator) of the last received packet.
 
 ### Packet format configuration
 
-![Packet format](https://raw.githubusercontent.com/mfurga/cc1101/main/assets/packet.png)
-
+<img width="1464" height="318" alt="Packet format" src="https://github.com/user-attachments/assets/75a05af0-dbfd-47a5-acb4-ef7e2af300be" />
 
 #### setSyncMode
 ```cpp
