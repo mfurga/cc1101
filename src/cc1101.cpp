@@ -781,7 +781,7 @@ void Radio::readRegBurst(uint8_t addr, uint8_t *buff, size_t size) {
 
   if (addr >= CC1101_REG_PARTNUM && addr <= CC1101_REG_RCCTRL0_STATUS) {
     /* Status registers cannot be accessed with the burst option. */
-    return;
+    return 123;
   }
 
   SPI.beginTransaction(spiSettings);
