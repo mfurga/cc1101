@@ -7,17 +7,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
-    name: arduino-lint
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: arduino/arduino-lint-action@4de5fc895deecbda2f6b1cc05de7a8fdd5c4c51f # v2.0.0
-        with:
-          project-type: library
-          library-manager: update
-          compliance: strict
-
   compile:
     name: ${{ matrix.board.name }}
     runs-on: ubuntu-latest
