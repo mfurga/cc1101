@@ -1,0 +1,36 @@
+{
+  "branches": ["main"],
+  "tagFormat": "${version}",
+  "plugins": [
+    "@semantic-release/commit-analyzer",
+    ["@semantic-release/release-notes-generator", {
+      "preset": "conventionalcommits",
+      "presetConfig": {
+        "types": [
+          {"type": "feat", "section": "Added"},
+          {"type": "fix", "section": "Fixed"},
+          {"type": "perf", "section": "Changed"},
+          {"type": "refactor", "section": "Changed"},
+          {"type": "revert", "section": "Fixed"},
+          {"type": "docs", "hidden": true},
+          {"type": "style", "hidden": true},
+          {"type": "chore", "hidden": true},
+          {"type": "test", "hidden": true},
+          {"type": "build", "hidden": true},
+          {"type": "ci", "hidden": true}
+        ]
+      }
+    }],
+    ["@semantic-release/changelog", {
+      "changelogFile": "CHANGELOG.md"
+    }],
+    ["@semantic-release/exec", {
+      "prepareCmd": "jq --arg v '${nextRelease.version}' '.version = $v' library.json > library.json.tmp && mv library.json.tmp library.json && sed -i 's/^version=.*/version=${nextRelease.version}/' library.properties"
+    }],
+    ["@semantic-release/git", {
+      "assets": ["CHANGELOG.md", "library.json", "library.properties"],
+      "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+    }],
+    "@semantic-release/github"
+  ]
+}
