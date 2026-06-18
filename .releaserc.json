@@ -1,5 +1,5 @@
 {
-  "branches": ["main", "ci/semantic-release"],
+  "branches": ["ci/semantic-release"],
   "tagFormat": "${version}",
   "plugins": [
     "@semantic-release/commit-analyzer",
