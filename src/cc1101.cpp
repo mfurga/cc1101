@@ -1,6 +1,5 @@
 // Copyright (c) 2023 Mateusz Furga
 // SPDX-License-Identifier: MIT
-// dummy
 
 #include "cc1101.h"  // NOLINT(build/include_subdir)
 
