@@ -1,6 +1,8 @@
 name: 4. Release
 
 on:
+  push:
+    branches: [main, ci/semantic-release]
   workflow_dispatch:
     inputs:
       dry_run:
