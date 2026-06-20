@@ -17,8 +17,7 @@ The CC1101 module uses the SPI interface for communication. The SI, SO, SCLK pin
 
 On an ESP32 any GPIOs can be used, you can specify alternate ones in the constructor.
 
-The CC1101 also exposes two general-purpose pins (GDO0 and GDO2) that can trigger MCU interrupts on specific events (such as when the RX FIFO fills up). Using these pins is optional for basic operations, but GDO0 must be connected to an interrupt-capable pin on the MCU and configured in the constructor if you want to use the non-blocking RX/TX APIs.
-
+The CC1101 also exposes two general-purpose pins (GDO0 and GDO2) that can trigger MCU interrupts on specific events (such as when the RX FIFO fills up). Using these pins is optional for basic operations, but GDO0 must be connected to an interrupt-capable pin on the MCU if you want to use the interrupt-driven (callback-based) non-blocking RX/TX APIs.
 
 ## Software reference
 
