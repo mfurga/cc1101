@@ -105,7 +105,7 @@ Starts a non-blocking transmission. The entire packet (including payload, option
 > The methods `startTransmit()`, `setTransmitAction()`, `clearTransmitAction()`, and `finishTransmit()` form the non-blocking transmission API and are designed to be used together. Do not mix the blocking `transmit()` method with these non-blocking transmission methods.
 
 Returns
-* `STATUS_LENGTH_TOO_BIG` if the total packet length is greater than 255, or if it exceeds the 64-byte TX FIFO capacity, or if the `length` is greater than required in fixed packet mode
+* `STATUS_LENGTH_TOO_BIG` if the total packet length is greater than 64-byte TX FIFO capacity, or if the `length` is greater than required in fixed packet mode
 * `STATUS_LENGTH_TOO_SMALL` if the `length` is smaller than required in fixed packet mode
 * `STATUS_OK` if transmission has successfully started
 
