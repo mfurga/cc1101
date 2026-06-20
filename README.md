@@ -17,7 +17,7 @@ The CC1101 module uses the SPI interface for communication. The SI, SO, SCLK pin
 
 On an ESP32 any GPIOs can be used, you can specify alternate ones in the constructor.
 
-The CC1101 exposes also two general purpose pins (GDO0, GDO2) which can be used to interrupt the MCU on certain events (e.g. RX FIFO is filled). They are optional and not required for proper work.
+The CC1101 also exposes two general-purpose pins (GDO0 and GDO2) that can trigger MCU interrupts on specific events (such as when the RX FIFO fills up). Using these pins is optional for basic operations, but GDO0 must be connected to an interrupt-capable pin on the MCU and configured in the constructor if you want to use the non-blocking RX/TX APIs.
 
 
 ## Software reference
@@ -87,7 +87,7 @@ Sets the RF output power (in dBm). Allowed output powers: -30, -20, -15, -10, 0,
 ```cpp
 Status transmit(uint8_t *data, size_t length, uint8_t addr = 0)
 ```
-Transmits the data. The `addr` parameter is used when the address filtering mode is enabled.
+Transmits the data. This method blocks until the transmission is complete or times out. The `addr` parameter is used when the address filtering mode is enabled.
 
 Returns
 * `STATUS_LENGTH_TOO_BIG` if `length` parameter is greater than 255, or if the `length` is greater than required in fixed packet mode
@@ -95,17 +95,99 @@ Returns
 * `STATUS_TXFIFO_UNDERFLOW` if the TX FIFO buffer runs out of data during transmission
 * `STATUS_TIMEOUT` if the packet is not fully transmitted within the timeout
 
+#### startTransmit
+```cpp
+Status startTransmit(uint8_t *data, size_t length, uint8_t addr = 0)
+```
+Starts a non-blocking transmission. The entire packet (including payload, optional address, and optional length byte) must fit within the 64-byte TX FIFO buffer. For longer payloads, use the blocking `transmit()` method instead.
+
+> [!IMPORTANT]
+> The methods `startTransmit()`, `setTransmitAction()`, `clearTransmitAction()`, and `finishTransmit()` form the non-blocking transmission API and are designed to be used together. Do not mix the blocking `transmit()` method with these non-blocking transmission methods.
+
+Returns
+* `STATUS_LENGTH_TOO_BIG` if the total packet length is greater than 255, or if it exceeds the 64-byte TX FIFO capacity, or if the `length` is greater than required in fixed packet mode
+* `STATUS_LENGTH_TOO_SMALL` if the `length` is smaller than required in fixed packet mode
+* `STATUS_OK` if transmission has successfully started
+
+#### setTransmitAction
+```cpp
+Status setTransmitAction(void (*func)(void))
+```
+Registers an interrupt callback function to be executed when the transmission is complete. The function uses the GDO0 pin to detect the falling edge of the sync word signal.
+
+Returns
+* `STATUS_INVALID_PARAM` if GDO0 was not configured
+* `STATUS_BAD_STATE` if sync word transmission is disabled (sync mode is set to `SYNC_MODE_NO_PREAMBLE` or `SYNC_MODE_NO_PREAMBLE_CS`)
+* `STATUS_OK` on success
+
+#### clearTransmitAction
+```cpp
+void clearTransmitAction()
+```
+Detaches the interrupt callback for transmission on the GDO0 pin.
+
+#### finishTransmit
+```cpp
+Status finishTransmit()
+```
+Finalizes the non-blocking transmission, transitions the radio state back to idle, and flushes the TX buffer.
+
+Returns
+* `STATUS_TXFIFO_UNDERFLOW` if the TX FIFO underflowed during transmission
+* `STATUS_OK` on success
+
 #### receive
 ```cpp
 Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0)
 ```
-Receives the data. The `read` parameter indicates the number of bytes actually received. The `addr` parameter is used when the address filtering mode is enabled.
+Receives the data. This method blocks until a packet is received or times out. The `read` parameter indicates the number of bytes actually received. The `addr` parameter is used when the address filtering mode is enabled.
 
 Returns
 * `STATUS_LENGTH_TOO_BIG` if the `length` parameter is greater than 255
 * `STATUS_LENGTH_TOO_SMALL` if `data` buffer is too small to hold the entire packet
 * `STATUS_CRC_MISMATCH` if the received CRC does not match the calculated CRC
 * `STATUS_RXFIFO_OVERFLOW` if the RX FIFO overflows due to unread incoming data
+* `STATUS_TIMEOUT` if no complete packet is received
+
+#### startReceive
+```cpp
+Status startReceive(uint8_t addr = 0)
+```
+Puts the radio into receive mode. If the GDO0 pin is configured, it configures GDO0 to assert when the RX FIFO is filled at or above the threshold, or when a packet ends.
+
+> [!IMPORTANT]
+> The methods `startReceive()`, `setReceiveAction()`, `clearReceiveAction()`, and `readData()` form the non-blocking reception API and are designed to be used together. Do not mix the blocking `receive()` method with these non-blocking reception methods.
+
+Returns
+* `STATUS_OK` on success
+
+#### setReceiveAction
+```cpp
+Status setReceiveAction(void (*func)(void))
+```
+Registers an interrupt callback function to be executed when the GDO0 pin transitions to high (rising edge), indicating that the RX FIFO threshold is reached or a packet has been fully received.
+
+Returns
+* `STATUS_INVALID_PARAM` if GDO0 was not configured
+* `STATUS_OK` on success
+
+#### clearReceiveAction
+```cpp
+void clearReceiveAction()
+```
+Detaches the interrupt callback for packet receipt on the GDO0 pin.
+
+#### readData
+```cpp
+Status readData(uint8_t *data, size_t length, size_t *read = nullptr)
+```
+Reads the received packet payload from the RX FIFO into the provided buffer `data`. The `read` parameter indicates the actual number of bytes read.
+
+Returns
+* `STATUS_LENGTH_TOO_BIG` if the requested `length` is greater than 255
+* `STATUS_LENGTH_TOO_SMALL` if the `data` buffer is too small to hold the received packet
+* `STATUS_CRC_MISMATCH` if the received CRC does not match the calculated CRC
+* `STATUS_RXFIFO_OVERFLOW` if the RX FIFO overflowed
 * `STATUS_TIMEOUT` if no complete packet is received
 
 #### getRSSI
