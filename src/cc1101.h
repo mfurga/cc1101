@@ -176,6 +176,17 @@ enum AddressFilteringMode {
   ADDR_FILTER_MODE_CHECK_BC_0_255 = 3 /* Address check, 0 and 255 broadcast */
 };
 
+enum GdoPin {
+  GDO0 = 0,  /* maps to IOCFG0 */
+  GDO2 = 2,  /* maps to IOCFG2 */
+};
+
+enum GdoConfig {
+  GDO_CFG_RX_FIFO_THR       = 0x01, /* RX FIFO >= threshold or end of packet */
+  GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, deasserts end of packet */
+  GDO_CFG_HIGH_Z            = 0x2e, /* high impedance (3-state) */
+};
+
 class Radio {
  public:
 #ifdef ESP32
@@ -228,13 +239,28 @@ class Radio {
   Status setPreambleLength(uint8_t length);
   void setSyncWord(uint16_t sync);
 
+  /* Blocking transmit */
   Status transmit(uint8_t *data, size_t length, uint8_t addr = 0);
+
+  /* Non-blocking transmit */
+  Status startTransmit(uint8_t *data, size_t length, uint8_t addr = 0);
+  Status setTransmitAction(void (*func)(void));
+  void clearTransmitAction();
+  // bool transmitDone();
+  Status finishTransmit();
+
+  /* Blocking receive */
   Status receive(uint8_t *data, size_t length, size_t *read = nullptr, uint8_t addr = 0);
+
+  /* Non-blocking receive */
+  Status startReceive(uint8_t addr = 0);
+  Status setReceiveAction(void (*func)(void));
+  void clearReceiveAction();
+  // bool available();
+  Status readData(uint8_t *data, size_t length, size_t *read = nullptr);
+
   int8_t getRSSI();
   uint8_t getLQI();
-
-  void receiveCallback(void (*func)(void));
-
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
   uint8_t readReg(uint8_t addr);
   void readRegBurst(uint8_t addr, uint8_t *buff, size_t size);
@@ -244,6 +270,8 @@ class Radio {
   void writeRegBurst(uint8_t addr, uint8_t *data, size_t size);
 
  private:
+  void setGdoConfig(GdoPin pin, GdoConfig cfg);
+
   void chipSelect();
   void chipDeselect();
   void waitReady();
@@ -274,7 +302,6 @@ class Radio {
   Modulation mod = MOD_2FSK;
   PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
   AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_NONE;
-  bool recvCallback = false;
 
   double freq = 433.5;
   double drate = 4.0;

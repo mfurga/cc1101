@@ -75,6 +75,9 @@ void Radio::setRegs() {
   writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);  /* APPEND_STATUS = 1 */
   writeRegField(CC1101_REG_PKTCTRL1, 0, 3, 3);  /* CRC_AUTOFLUSH = 0 */
 
+  /* RX FIFO threshold = 64 (max) */
+  writeRegField(CC1101_REG_FIFOTHR, 0x0f, 3, 0);
+
   /* Disable data whitening. */
   setDataWhitening(false);
 }
@@ -378,6 +381,11 @@ void Radio::setAddressFilteringMode(AddressFilteringMode mode) {
   writeRegField(CC1101_REG_PKTCTRL1, (uint8_t)mode, 1, 0);
 }
 
+void Radio::setGdoConfig(GdoPin pin, GdoConfig cfg) {
+  uint8_t reg = (pin == GDO2) ? CC1101_REG_IOCFG2 : CC1101_REG_IOCFG0;
+  writeRegField(reg, (uint8_t)cfg, 5, 0);
+}
+
 void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
 }
@@ -493,6 +501,88 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
   return STATUS_OK;
 }
 
+Status Radio::startTransmit(uint8_t *data, size_t length, uint8_t addr) {
+  size_t curPktLen = length;
+
+  if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
+    curPktLen++;
+  }
+
+  if (curPktLen > 255) {
+    return STATUS_LENGTH_TOO_BIG;
+  }
+
+  if (pktLenMode == PKT_LEN_MODE_FIXED) {
+    if (curPktLen < this->pktLen) {
+      return STATUS_LENGTH_TOO_SMALL;
+    }
+    if (curPktLen > this->pktLen) {
+      return STATUS_LENGTH_TOO_BIG;
+    }
+  }
+
+  /*
+    The whole packet (length byte + address byte + payload) must fit in the TX
+    FIFO: a non-blocking transmit cannot top the FIFO up as the chip drains it.
+    Use the blocking transmit() for longer payloads.
+  */
+  size_t fifoBytes = curPktLen + (pktLenMode == PKT_LEN_MODE_VARIABLE ? 1 : 0);
+  if (fifoBytes > CC1101_FIFO_SIZE) {
+    return STATUS_LENGTH_TOO_BIG;
+  }
+
+  setState(STATE_IDLE);
+  flushTxBuffer();
+
+  if (pktLenMode == PKT_LEN_MODE_VARIABLE) {
+    writeReg(CC1101_REG_FIFO, (uint8_t)curPktLen);
+  }
+
+  if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
+    writeReg(CC1101_REG_FIFO, addr);
+  }
+
+  writeRegBurst(CC1101_REG_FIFO, data, length);
+
+  if (gd0 != PIN_UNUSED) {
+    setGdoConfig(GDO0, GDO_CFG_SYNC_WORD);
+  }
+
+  setState(STATE_TX);
+  return STATUS_OK;
+}
+
+Status Radio::setTransmitAction(void (*func)(void)) {
+  if (gd0 == PIN_UNUSED) {
+    return STATUS_INVALID_PARAM;
+  }
+  /* Check if the sync word is disabled */
+  if ((readRegField(CC1101_REG_MDMCFG2, 2, 0) & 0x03) == 0) {
+    return STATUS_BAD_STATE;
+  }
+  setGdoConfig(GDO0, GDO_CFG_SYNC_WORD);
+  attachInterrupt(digitalPinToInterrupt(gd0), func, FALLING);
+  return STATUS_OK;
+}
+
+void Radio::clearTransmitAction() {
+  if (gd0 == PIN_UNUSED) {
+    return;
+  }
+  detachInterrupt(digitalPinToInterrupt(gd0));
+}
+
+// bool Radio::transmitDone() {
+//   return getState() != STATE_TX;
+// }
+
+Status Radio::finishTransmit() {
+  bool underflow = txFifoUnderflowed();
+  setState(STATE_IDLE);
+  flushTxBuffer();
+  return underflow ? STATUS_TXFIFO_UNDERFLOW : STATUS_OK;
+}
+
 Status Radio::abortReceive() {
   bool overflow = rxFifoOverflowed();
   setState(STATE_IDLE);
@@ -500,7 +590,52 @@ Status Radio::abortReceive() {
   return overflow ? STATUS_RXFIFO_OVERFLOW : STATUS_TIMEOUT;
 }
 
+Status Radio::startReceive(uint8_t addr) {
+  writeReg(CC1101_REG_ADDR, addr);
+
+  setState(STATE_IDLE);
+  flushRxBuffer();
+
+  if (gd0 != PIN_UNUSED) {
+    setGdoConfig(GDO0, GDO_CFG_RX_FIFO_THR);
+  }
+
+  setState(STATE_RX);
+  return STATUS_OK;
+}
+
+Status Radio::setReceiveAction(void (*func)(void)) {
+  if (gd0 == PIN_UNUSED) {
+    return STATUS_INVALID_PARAM;
+  }
+  setGdoConfig(GDO0, GDO_CFG_RX_FIFO_THR);
+  attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
+  return STATUS_OK;
+}
+
+void Radio::clearReceiveAction() {
+  if (gd0 == PIN_UNUSED) {
+    return;
+  }
+  detachInterrupt(digitalPinToInterrupt(gd0));
+}
+
+// bool Radio::available() {
+//   if (rxFifoOverflowed()) {
+//     return true;
+//   }
+//   return getState() != STATE_RX && readFifoByteCount(CC1101_REG_RXBYTES) > 0;
+// }
+
 Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) {
+  Status status = startReceive(addr);
+  if (status != STATUS_OK) {
+    return status;
+  }
+  return readData(data, length, read);
+}
+
+Status Radio::readData(uint8_t *data, size_t length, size_t *read) {
   if (read != nullptr) {
     *read = 0;
   }
@@ -508,12 +643,6 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
   if (length > 255) {
     return STATUS_LENGTH_TOO_BIG;
   }
-
-  writeReg(CC1101_REG_ADDR, addr);
-
-  setState(STATE_IDLE);
-  flushRxBuffer();
-  setState(STATE_RX);
 
   uint8_t headerBytes = 0;
   uint8_t dataLength = this->pktLen;
@@ -570,8 +699,8 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
     */
     bool fullPacketInFifo =
         static_cast<uint16_t>(bytesInFifo) >= static_cast<uint16_t>(remaining) + 2;
-    uint8_t available = fullPacketInFifo ? bytesInFifo : (uint8_t)(bytesInFifo - 1);
-    uint8_t bytesToRead = min(remaining, available);  // NOLINT(build/include_what_you_use)
+    uint8_t readable = fullPacketInFifo ? bytesInFifo : (uint8_t)(bytesInFifo - 1);
+    uint8_t bytesToRead = min(remaining, readable);  // NOLINT(build/include_what_you_use)
 
     readRegBurst(CC1101_REG_FIFO, data + dataRead, bytesToRead);
     dataRead += bytesToRead;
@@ -663,22 +792,6 @@ uint8_t Radio::waitForSpaceInFifo(uint8_t minSpace) {
     delayMicroseconds(15);
     yield();
   }
-}
-
-void Radio::receiveCallback(void (*func)(void)) {
-  /*
-    Associated to the RX FIFO: Asserts when RX FIFO is filled at or above
-    the RX FIFO threshold or the end of packet is reached. De-asserts when
-    the RX FIFO is empty.
-  */
-  writeRegField(CC1101_REG_IOCFG0, 1, 5, 0);
-
-  // TODO(mfurga): Move to other method.
-  flushRxBuffer();
-  setState(STATE_RX);
-
-  recvCallback = true;
-  attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
 }
 
 State Radio::getState() {
