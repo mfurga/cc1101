@@ -183,7 +183,7 @@ enum GdoPin {
 
 enum GdoConfig {
   GDO_CFG_RX_FIFO_THR       = 0x01, /* RX FIFO >= threshold or end of packet */
-  GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, deasserts end of packet */
+  GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, de-asserts at end of packet */
   GDO_CFG_HIGH_Z            = 0x2e, /* high impedance (3-state) */
 };
 

@@ -45,7 +45,12 @@ void setup() {
   radio.setManchester(false);
   radio.setFEC(false);
 
-  radio.setReceiveAction(onReceive);
+  Status status = radio.setReceiveAction(onReceive);
+  if (status != STATUS_OK) {
+    Serial.print(F("setReceiveAction error: "));
+    Serial.println(status);
+    while (true) { delay(1000); }
+  }
   radio.startReceive();
 
   Serial.println(F("Listening ..."));
@@ -59,6 +64,7 @@ void loop() {
       lastBeat = millis();
       Serial.println(F("Doing other work while waiting ..."));
     }
+    yield();
     return;
   }
   packetReceived = false;

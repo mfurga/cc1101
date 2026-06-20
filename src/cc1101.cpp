@@ -75,8 +75,8 @@ void Radio::setRegs() {
   writeRegField(CC1101_REG_PKTCTRL1, 1, 2, 2);  /* APPEND_STATUS = 1 */
   writeRegField(CC1101_REG_PKTCTRL1, 0, 3, 3);  /* CRC_AUTOFLUSH = 0 */
 
-  /* RX FIFO threshold = 64 (max) */
-  writeRegField(CC1101_REG_FIFOTHR, 0x0f, 3, 0);
+  /* RX FIFO threshold = 48 bytes (TX FIFO threshold = 17 bytes) */
+  writeRegField(CC1101_REG_FIFOTHR, 0x0b, 3, 0);
 
   /* Disable data whitening. */
   setDataWhitening(false);

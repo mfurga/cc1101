@@ -47,7 +47,12 @@ void setup() {
   radio.setManchester(false);
   radio.setFEC(false);
 
-  radio.setTransmitAction(onTransmit);
+  Status status = radio.setTransmitAction(onTransmit);
+  if (status != STATUS_OK) {
+    Serial.print(F("setTransmitAction error: "));
+    Serial.println(status);
+    while (true) { delay(1000); }
+  }
 }
 
 void loop() {
