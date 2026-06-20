@@ -1,9 +1,13 @@
+// Blocking transmit example, standard FIFO packet mode.
+
 #include <Arduino.h>
 #include <cc1101.h>
 
 using namespace CC1101;
 
-Radio radio(/* cs pin */ 10);
+#define CS_PIN    10
+
+Radio radio(/* cs */ CS_PIN);
 
 void setup() {
   Serial.begin(115200);
