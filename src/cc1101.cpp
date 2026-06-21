@@ -386,6 +386,25 @@ void Radio::setGdoConfig(GdoPin pin, GdoConfig cfg) {
   writeRegField(reg, (uint8_t)cfg, 5, 0);
 }
 
+void Radio::setPacketFormat(PacketFormat fmt) {
+  this->pktFormat = fmt;
+
+  writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)fmt, 5, 4);
+
+  switch (fmt) {
+    case PKT_FORMAT_ASYNC_SERIAL:
+      setGdoConfig(GDO2, GDO_CFG_SERIAL_DATA_ASYNC);
+    break;
+    case PKT_FORMAT_SYNC_SERIAL:
+      setGdoConfig(GDO0, GDO_CFG_SERIAL_DATA_SYNC);
+      setGdoConfig(GDO2, GDO_CFG_SERIAL_CLOCK);
+    break;
+    default:
+      /* Normal/random TX: leave GDO config to the FIFO RX/callback path. */
+    break;
+  }
+}
+
 void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
 }
@@ -422,6 +441,36 @@ uint8_t Radio::getLQI() {
   return this->lqi;
 }
 
+void Radio::idle() {
+  setState(STATE_IDLE);
+}
+
+Status Radio::serialTransmit() {
+  if (pktFormat != PKT_FORMAT_SYNC_SERIAL && pktFormat != PKT_FORMAT_ASYNC_SERIAL) {
+    return STATUS_BAD_STATE;
+  }
+
+  if (gd0 == PIN_UNUSED) {
+    return STATUS_INVALID_PARAM;
+  }
+
+  pinMode(gd0, OUTPUT);
+  setState(STATE_TX);
+  return STATUS_OK;
+}
+
+Status Radio::serialReceive() {
+  if (pktFormat != PKT_FORMAT_SYNC_SERIAL && pktFormat != PKT_FORMAT_ASYNC_SERIAL) {
+    return STATUS_BAD_STATE;
+  }
+
+  if (gd0 != PIN_UNUSED) {
+    pinMode(gd0, INPUT);
+  }
+  setState(STATE_RX);
+  return STATUS_OK;
+}
+
 Status Radio::abortTransmit() {
   bool underflow = txFifoUnderflowed();
   setState(STATE_IDLE);
@@ -430,6 +479,10 @@ Status Radio::abortTransmit() {
 }
 
 Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
+  if (pktFormat != PKT_FORMAT_NORMAL) {
+    return STATUS_BAD_STATE;
+  }
+
   size_t curPktLen = length;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
@@ -502,6 +555,10 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 }
 
 Status Radio::startTransmit(uint8_t *data, size_t length, uint8_t addr) {
+  if (pktFormat != PKT_FORMAT_NORMAL) {
+    return STATUS_BAD_STATE;
+  }
+
   size_t curPktLen = length;
 
   if (addrFilterMode != ADDR_FILTER_MODE_NONE) {
@@ -577,6 +634,9 @@ void Radio::clearTransmitAction() {
 // }
 
 Status Radio::finishTransmit() {
+  if (pktFormat != PKT_FORMAT_NORMAL) {
+    return STATUS_BAD_STATE;
+  }
   bool underflow = txFifoUnderflowed();
   setState(STATE_IDLE);
   flushTxBuffer();
@@ -591,6 +651,10 @@ Status Radio::abortReceive() {
 }
 
 Status Radio::startReceive(uint8_t addr) {
+  if (pktFormat != PKT_FORMAT_NORMAL) {
+    return STATUS_BAD_STATE;
+  }
+
   writeReg(CC1101_REG_ADDR, addr);
 
   setState(STATE_IDLE);
@@ -636,6 +700,10 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 }
 
 Status Radio::readData(uint8_t *data, size_t length, size_t *read) {
+  if (pktFormat != PKT_FORMAT_NORMAL) {
+    return STATUS_BAD_STATE;
+  }
+
   if (read != nullptr) {
     *read = 0;
   }
