@@ -552,24 +552,24 @@ Status Radio::startTransmit(uint8_t *data, size_t length, uint8_t addr) {
   return STATUS_OK;
 }
 
-Status Radio::setTransmitAction(void (*func)(void)) {
-  if (gd0 == PIN_UNUSED) {
+Status Radio::setTransmitAction(void (*func)(void), GdoPin pin) {
+  if ((pin == GDO0 && gd0 == PIN_UNUSED) || (pin == GDO2 && gd2 == PIN_UNUSED)) {
     return STATUS_INVALID_PARAM;
   }
   /* Check if the sync word is disabled */
   if ((readRegField(CC1101_REG_MDMCFG2, 2, 0) & 0x03) == 0) {
     return STATUS_BAD_STATE;
   }
-  setGdoConfig(GDO0, GDO_CFG_SYNC_WORD);
-  attachInterrupt(digitalPinToInterrupt(gd0), func, FALLING);
+  setGdoConfig(pin, GDO_CFG_SYNC_WORD);
+  attachInterrupt(digitalPinToInterrupt(pin == GDO0 ? gd0 : gd2), func, FALLING);
   return STATUS_OK;
 }
 
-void Radio::clearTransmitAction() {
-  if (gd0 == PIN_UNUSED) {
+void Radio::clearTransmitAction(GdoPin pin) {
+  if ((pin == GDO0 && gd0 == PIN_UNUSED) || (pin == GDO2 && gd2 == PIN_UNUSED)) {
     return;
   }
-  detachInterrupt(digitalPinToInterrupt(gd0));
+  detachInterrupt(digitalPinToInterrupt(pin == GDO0 ? gd0 : gd2));
 }
 
 // bool Radio::transmitDone() {
@@ -604,20 +604,20 @@ Status Radio::startReceive(uint8_t addr) {
   return STATUS_OK;
 }
 
-Status Radio::setReceiveAction(void (*func)(void)) {
-  if (gd0 == PIN_UNUSED) {
+Status Radio::setReceiveAction(void (*func)(void), GdoPin pin) {
+  if ((pin == GDO0 && gd0 == PIN_UNUSED) || (pin == GDO2 && gd2 == PIN_UNUSED)) {
     return STATUS_INVALID_PARAM;
   }
-  setGdoConfig(GDO0, GDO_CFG_RX_FIFO_THR);
-  attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
+  setGdoConfig(pin, GDO_CFG_RX_FIFO_THR);
+  attachInterrupt(digitalPinToInterrupt(pin == GDO0 ? gd0 : gd2), func, RISING);
   return STATUS_OK;
 }
 
-void Radio::clearReceiveAction() {
-  if (gd0 == PIN_UNUSED) {
+void Radio::clearReceiveAction(GdoPin pin) {
+  if ((pin == GDO0 && gd0 == PIN_UNUSED) || (pin == GDO2 && gd2 == PIN_UNUSED)) {
     return;
   }
-  detachInterrupt(digitalPinToInterrupt(gd0));
+  detachInterrupt(digitalPinToInterrupt(pin == GDO0 ? gd0 : gd2));
 }
 
 // bool Radio::available() {

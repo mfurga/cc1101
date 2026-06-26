@@ -244,8 +244,8 @@ class Radio {
 
   /* Non-blocking transmit */
   Status startTransmit(uint8_t *data, size_t length, uint8_t addr = 0);
-  Status setTransmitAction(void (*func)(void));
-  void clearTransmitAction();
+  Status setTransmitAction(void (*func)(void), GdoPin pin = GDO0);
+  void clearTransmitAction(GdoPin pin = GDO0);
   // bool transmitDone();
   Status finishTransmit();
 
@@ -254,8 +254,8 @@ class Radio {
 
   /* Non-blocking receive */
   Status startReceive(uint8_t addr = 0);
-  Status setReceiveAction(void (*func)(void));
-  void clearReceiveAction();
+  Status setReceiveAction(void (*func)(void), GdoPin pin = GDO0);
+  void clearReceiveAction(GdoPin pin = GDO0);
   // bool available();
   Status readData(uint8_t *data, size_t length, size_t *read = nullptr);
 
