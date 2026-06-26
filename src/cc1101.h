@@ -297,6 +297,7 @@ class Radio {
   uint8_t cs, gd0, gd2;
   uint8_t clk, miso, mosi;
   SPISettings spiSettings;
+  GdoPin transmitActionPin = GDO0, receiveActionPin = GDO0;
 
   State currentState = STATE_IDLE;
   Modulation mod = MOD_2FSK;
