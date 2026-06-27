@@ -1,4 +1,5 @@
-// Non-blocking (interrupt-driven) transmit example, standard FIFO packet mode.
+// Non-blocking (interrupt-driven) alternating transmit/receive example,
+// standard FIFO packet mode.
 
 #include <Arduino.h>
 #include <cc1101.h>

@@ -121,9 +121,9 @@ Returns
 
 #### clearTransmitAction
 ```cpp
-void clearTransmitAction(GdoPin pin = GDO0)
+void clearTransmitAction()
 ```
-Detaches the interrupt callback for transmission on the specified GDO pin (default GDO0).
+Detaches the interrupt callback for transmission from the GDO pin registered by `setTransmitAction()`.
 
 #### finishTransmit
 ```cpp
@@ -172,9 +172,9 @@ Returns
 
 #### clearReceiveAction
 ```cpp
-void clearReceiveAction(GdoPin pin = GDO0)
+void clearReceiveAction()
 ```
-Detaches the interrupt callback for packet receipt on the specified GDO pin.
+Detaches the interrupt callback for packet receipt from the GDO pin registered by `setReceiveAction()`.
 
 #### readData
 ```cpp

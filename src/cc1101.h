@@ -185,6 +185,7 @@ enum GdoConfig {
   GDO_CFG_RX_FIFO_THR       = 0x01, /* RX FIFO >= threshold or end of packet */
   GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, de-asserts at end of packet */
   GDO_CFG_HIGH_Z            = 0x2e, /* high impedance (3-state) */
+  GDO_CFG_CONSTANT_LOW      = 0x2f, /* hardwired to 0 (no edges) */
 };
 
 class Radio {
@@ -245,7 +246,7 @@ class Radio {
   /* Non-blocking transmit */
   Status startTransmit(uint8_t *data, size_t length, uint8_t addr = 0);
   Status setTransmitAction(void (*func)(void), GdoPin pin = GDO0);
-  void clearTransmitAction(GdoPin pin = GDO0);
+  void clearTransmitAction();
   // bool transmitDone();
   Status finishTransmit();
 
@@ -255,7 +256,7 @@ class Radio {
   /* Non-blocking receive */
   Status startReceive(uint8_t addr = 0);
   Status setReceiveAction(void (*func)(void), GdoPin pin = GDO0);
-  void clearReceiveAction(GdoPin pin = GDO0);
+  void clearReceiveAction();
   // bool available();
   Status readData(uint8_t *data, size_t length, size_t *read = nullptr);
 
@@ -271,6 +272,8 @@ class Radio {
 
  private:
   void setGdoConfig(GdoPin pin, GdoConfig cfg);
+  uint8_t gdoToMcuPin(GdoPin pin);
+  bool isGdoPinConfigured(GdoPin pin);
 
   void chipSelect();
   void chipDeselect();
