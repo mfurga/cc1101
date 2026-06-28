@@ -386,6 +386,14 @@ void Radio::setGdoConfig(GdoPin pin, GdoConfig cfg) {
   writeRegField(reg, (uint8_t)cfg, 5, 0);
 }
 
+uint8_t Radio::gdoToMcuPin(GdoPin pin) {
+  return (pin == GDO2) ? gd2 : gd0;
+}
+
+bool Radio::isGdoPinConfigured(GdoPin pin) {
+  return gdoToMcuPin(pin) != PIN_UNUSED;
+}
+
 void Radio::setCrc(bool enable) {
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)enable, 2, 2);
 }
@@ -544,32 +552,36 @@ Status Radio::startTransmit(uint8_t *data, size_t length, uint8_t addr) {
 
   writeRegBurst(CC1101_REG_FIFO, data, length);
 
-  if (gd0 != PIN_UNUSED) {
-    setGdoConfig(GDO0, GDO_CFG_SYNC_WORD);
+  if (receiveActionPin != transmitActionPin && isGdoPinConfigured(receiveActionPin)) {
+    setGdoConfig(receiveActionPin, GDO_CFG_CONSTANT_LOW);
+  }
+  if (isGdoPinConfigured(transmitActionPin)) {
+    setGdoConfig(transmitActionPin, GDO_CFG_SYNC_WORD);
   }
 
   setState(STATE_TX);
   return STATUS_OK;
 }
 
-Status Radio::setTransmitAction(void (*func)(void)) {
-  if (gd0 == PIN_UNUSED) {
+Status Radio::setTransmitAction(void (*func)(void), GdoPin pin) {
+  if (!isGdoPinConfigured(pin)) {
     return STATUS_INVALID_PARAM;
   }
   /* Check if the sync word is disabled */
   if ((readRegField(CC1101_REG_MDMCFG2, 2, 0) & 0x03) == 0) {
     return STATUS_BAD_STATE;
   }
-  setGdoConfig(GDO0, GDO_CFG_SYNC_WORD);
-  attachInterrupt(digitalPinToInterrupt(gd0), func, FALLING);
+  transmitActionPin = pin;
+  setGdoConfig(pin, GDO_CFG_SYNC_WORD);
+  attachInterrupt(digitalPinToInterrupt(gdoToMcuPin(pin)), func, FALLING);
   return STATUS_OK;
 }
 
 void Radio::clearTransmitAction() {
-  if (gd0 == PIN_UNUSED) {
+  if (!isGdoPinConfigured(transmitActionPin)) {
     return;
   }
-  detachInterrupt(digitalPinToInterrupt(gd0));
+  detachInterrupt(digitalPinToInterrupt(gdoToMcuPin(transmitActionPin)));
 }
 
 // bool Radio::transmitDone() {
@@ -596,28 +608,32 @@ Status Radio::startReceive(uint8_t addr) {
   setState(STATE_IDLE);
   flushRxBuffer();
 
-  if (gd0 != PIN_UNUSED) {
-    setGdoConfig(GDO0, GDO_CFG_RX_FIFO_THR);
+  if (transmitActionPin != receiveActionPin && isGdoPinConfigured(transmitActionPin)) {
+    setGdoConfig(transmitActionPin, GDO_CFG_CONSTANT_LOW);
+  }
+  if (isGdoPinConfigured(receiveActionPin)) {
+    setGdoConfig(receiveActionPin, GDO_CFG_RX_FIFO_THR);
   }
 
   setState(STATE_RX);
   return STATUS_OK;
 }
 
-Status Radio::setReceiveAction(void (*func)(void)) {
-  if (gd0 == PIN_UNUSED) {
+Status Radio::setReceiveAction(void (*func)(void), GdoPin pin) {
+  if (!isGdoPinConfigured(pin)) {
     return STATUS_INVALID_PARAM;
   }
-  setGdoConfig(GDO0, GDO_CFG_RX_FIFO_THR);
-  attachInterrupt(digitalPinToInterrupt(gd0), func, RISING);
+  receiveActionPin = pin;
+  setGdoConfig(pin, GDO_CFG_RX_FIFO_THR);
+  attachInterrupt(digitalPinToInterrupt(gdoToMcuPin(pin)), func, RISING);
   return STATUS_OK;
 }
 
 void Radio::clearReceiveAction() {
-  if (gd0 == PIN_UNUSED) {
+  if (!isGdoPinConfigured(receiveActionPin)) {
     return;
   }
-  detachInterrupt(digitalPinToInterrupt(gd0));
+  detachInterrupt(digitalPinToInterrupt(gdoToMcuPin(receiveActionPin)));
 }
 
 // bool Radio::available() {

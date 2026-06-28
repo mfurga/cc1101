@@ -110,12 +110,12 @@ Returns
 
 #### setTransmitAction
 ```cpp
-Status setTransmitAction(void (*func)(void))
+Status setTransmitAction(void (*func)(void), GdoPin pin = GDO0)
 ```
-Registers an interrupt callback function to be executed when the transmission is complete. The function uses the GDO0 pin to detect the falling edge of the sync word signal.
+Registers an interrupt callback function to be executed when the transmission is complete. The function uses the specified GDO pin (default GDO0) to detect the falling edge of the sync word signal.
 
 Returns
-* `STATUS_INVALID_PARAM` if GDO0 was not configured
+* `STATUS_INVALID_PARAM` if the specified GDO pin was not configured
 * `STATUS_BAD_STATE` if sync word transmission is disabled (sync mode is set to `SYNC_MODE_NO_PREAMBLE` or `SYNC_MODE_NO_PREAMBLE_CS`)
 * `STATUS_OK` on success
 
@@ -123,7 +123,7 @@ Returns
 ```cpp
 void clearTransmitAction()
 ```
-Detaches the interrupt callback for transmission on the GDO0 pin.
+Detaches the interrupt callback for transmission from the GDO pin registered by `setTransmitAction()`.
 
 #### finishTransmit
 ```cpp
@@ -162,19 +162,19 @@ Returns
 
 #### setReceiveAction
 ```cpp
-Status setReceiveAction(void (*func)(void))
+Status setReceiveAction(void (*func)(void), GdoPin pin = GDO0)
 ```
-Registers an interrupt callback function to be executed when the GDO0 pin goes high (rising edge), indicating that the RX FIFO threshold is reached or a packet has been fully received.
+Registers an interrupt callback function to be executed when the specified GDO pin (default GDO0) goes high (rising edge), indicating that the RX FIFO threshold is reached or a packet has been fully received.
 
 Returns
-* `STATUS_INVALID_PARAM` if GDO0 was not configured
+* `STATUS_INVALID_PARAM` if specified GDO pin was not configured
 * `STATUS_OK` on success
 
 #### clearReceiveAction
 ```cpp
 void clearReceiveAction()
 ```
-Detaches the interrupt callback for packet receipt on the GDO0 pin.
+Detaches the interrupt callback for packet receipt from the GDO pin registered by `setReceiveAction()`.
 
 #### readData
 ```cpp
