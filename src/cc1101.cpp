@@ -401,7 +401,8 @@ void Radio::setPacketFormat(PacketFormat fmt) {
 
   switch (fmt) {
     case PKT_FORMAT_ASYNC_SERIAL:
-      setGdoConfig(GDO2, GDO_CFG_SERIAL_DATA_ASYNC);
+      setGdoConfig(GDO0, GDO_CFG_SERIAL_DATA_ASYNC);
+      setGdoConfig(GDO2, GDO_CFG_HIGH_Z);
     break;
     case PKT_FORMAT_SYNC_SERIAL:
       setGdoConfig(GDO0, GDO_CFG_SERIAL_DATA_SYNC);
