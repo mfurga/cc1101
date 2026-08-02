@@ -11,21 +11,34 @@ using namespace CC1101;
 
 Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN, /* gd2 */ GDO2_PIN);
 
-// Marker M that every packet starts with. It is matched at the bit level, so it
-// can be up to 8 bytes. Set MARKER_LEN to 0 to disable matching (print all data).
-const uint8_t MARKER[] = {0xaa, 0xaa, 0x00, 0x00};
-const size_t MARKER_LEN = sizeof(MARKER);  // marker bytes to match; 0 = disabled
-const size_t PAYLOAD_LEN = 4; // bytes to capture and print after the marker
-
-static_assert(MARKER_LEN <= 8, "MARKER_LEN must be <= 8 (matched in a uint64_t)");
-
-uint64_t markerBits = 0;
-uint64_t markerMask = 0;
+// Marker that every packet starts with, matched at the bit level because the
+// chip adds no preamble or sync word. Must match MARKER in the transmit
+// example, which sends a counter right after it.
+const uint32_t MARKER = 0xdeadbeef;
 
 static inline uint8_t clockInBit() {
   while (digitalRead(GDO2_PIN) == HIGH) { yield(); }  // wait for the low phase of the clock
   while (digitalRead(GDO2_PIN) == LOW) { yield(); }   // rising edge: the data is valid
   return digitalRead(GDO0_PIN) & 1;
+}
+
+static uint32_t clockInWord() {
+  uint32_t word = 0;
+  for (int b = 0; b < 32; b++) {
+    word = (word << 1) | clockInBit();
+  }
+  return word;
+}
+
+static void printHex(uint32_t word) {
+  for (int shift = 24; shift >= 0; shift -= 8) {
+    uint8_t b = word >> shift;
+    if (b < 0x10) {
+      Serial.print('0');
+    }
+    Serial.print(b, HEX);
+    Serial.print(' ');
+  }
 }
 
 void setup() {
@@ -58,45 +71,22 @@ void setup() {
 
   radio.setPacketFormat(PKT_FORMAT_SYNC_SERIAL);
 
-  // Pack the marker into a right-aligned bit pattern and build its mask.
-  for (size_t i = 0; i < MARKER_LEN; i++) {
-    markerBits = (markerBits << 8) | MARKER[i];
-  }
-  markerMask = (MARKER_LEN == 0) ? 0
-             : (MARKER_LEN >= 8) ? ~0ULL
-                                 : ((1ULL << (MARKER_LEN * 8)) - 1);
-
   radio.serialReceive();
   Serial.println(F("Receiving ..."));
 }
 
 void loop() {
-  static uint64_t window = 0;
-
-  if (MARKER_LEN > 0) {
+  // Slide a 32 bit window over the stream until the marker lines up.
+  uint32_t window = 0;
+  while (window != MARKER) {
     window = (window << 1) | clockInBit();
-    if ((window & markerMask) != markerBits) {
-      return;
-    }
   }
 
-  uint8_t payload[PAYLOAD_LEN];
-  for (size_t i = 0; i < PAYLOAD_LEN; i++) {
-    uint8_t b = 0;
-    for (int k = 0; k < 8; k++) {
-      b = (b << 1) | clockInBit();
-    }
-    payload[i] = b;
-  }
+  uint32_t payload = clockInWord();
 
-  for (size_t i = 0; i < PAYLOAD_LEN; i++) {
-    if (payload[i] < 0x10) {
-      Serial.print('0');
-    }
-    Serial.print(payload[i], HEX);
-    Serial.print(' ');
-  }
+  Serial.print(F("Received "));
+  printHex(MARKER);
+  Serial.print(F("| "));
+  printHex(payload);
   Serial.println();
-
-  window = 0;
 }

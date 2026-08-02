@@ -11,16 +11,34 @@ using namespace CC1101;
 
 Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN, /* gd2 */ GDO2_PIN);
 
-// Raw payload, transmitted MSB first. No preamble or sync word is added.
-const uint8_t payload[] = {
-    0xaa, 0xaa, 0x00, 0x00,
-    0x12, 0x34, 0x56, 0x78
-};
+// Every packet is a marker followed by a counter, both sent MSB first. No
+// preamble or sync word is added by the chip; the receive example finds the
+// marker at the bit level. MARKER must match there.
+const uint32_t MARKER = 0xdeadbeef;
+
+uint32_t counter = 0;
 
 static inline void clockOutBit(uint8_t bit) {
   while (digitalRead(GDO2_PIN) == HIGH) { yield(); }
   digitalWrite(GDO0_PIN, bit ? HIGH : LOW);
   while (digitalRead(GDO2_PIN) == LOW) { yield(); }
+}
+
+static void clockOutWord(uint32_t word) {
+  for (int b = 31; b >= 0; b--) {
+    clockOutBit((word >> b) & 0x01);
+  }
+}
+
+static void printHex(uint32_t word) {
+  for (int shift = 24; shift >= 0; shift -= 8) {
+    uint8_t b = word >> shift;
+    if (b < 0x10) {
+      Serial.print('0');
+    }
+    Serial.print(b, HEX);
+    Serial.print(' ');
+  }
 }
 
 void setup() {
@@ -52,7 +70,11 @@ void setup() {
 }
 
 void loop() {
-  Serial.println(F("Transmitting ..."));
+  Serial.print(F("Transmitting "));
+  printHex(MARKER);
+  Serial.print(F("| "));
+  printHex(counter);
+  Serial.println();
 
   if (radio.serialTransmit() != STATUS_OK) {
     Serial.println(F("serialTransmit() failed"));
@@ -60,11 +82,8 @@ void loop() {
     return;
   }
 
-  for (size_t i = 0; i < sizeof(payload); i++) {
-    for (int b = 7; b >= 0; b--) {
-      clockOutBit((payload[i] >> b) & 0x01);
-    }
-  }
+  clockOutWord(MARKER);
+  clockOutWord(counter);
 
   // Clock out exactly 12 dummy bits before leaving TX (CC1101 errata SWRZ020E,
   // "Extra Byte Transmitted in TX").
@@ -73,5 +92,6 @@ void loop() {
   }
 
   radio.idle();
+  counter++;
   delay(1000);
 }

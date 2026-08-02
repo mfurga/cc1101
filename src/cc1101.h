@@ -278,6 +278,7 @@ class Radio {
 
   int8_t getRSSI();
   uint8_t getLQI();
+
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
   uint8_t readReg(uint8_t addr);
   void readRegBurst(uint8_t addr, uint8_t *buff, size_t size);
