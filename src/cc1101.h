@@ -190,7 +190,7 @@ enum GdoPin {
 
 enum GdoConfig {
   GDO_CFG_RX_FIFO_THR       = 0x01, /* RX FIFO >= threshold or end of packet */
-  GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, deasserts end of packet */
+  GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, de-asserts at end of packet */
   GDO_CFG_SERIAL_CLOCK      = 0x0b, /* serial clock (synchronous serial mode) */
   GDO_CFG_SERIAL_DATA_SYNC  = 0x0c, /* serial synchronous data output */
   GDO_CFG_SERIAL_DATA_ASYNC = 0x0d, /* serial data output (asynchronous mode) */

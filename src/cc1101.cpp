@@ -459,7 +459,8 @@ Status Radio::serialTransmit() {
     return STATUS_BAD_STATE;
   }
 
-  if (gd0 == PIN_UNUSED) {
+  if (gd0 == PIN_UNUSED ||
+      (pktFormat == PKT_FORMAT_SYNC_SERIAL && gd2 == PIN_UNUSED)) {
     return STATUS_INVALID_PARAM;
   }
 
@@ -473,9 +474,12 @@ Status Radio::serialReceive() {
     return STATUS_BAD_STATE;
   }
 
-  if (gd0 != PIN_UNUSED) {
-    pinMode(gd0, INPUT);
+  if (gd0 == PIN_UNUSED ||
+      (pktFormat == PKT_FORMAT_SYNC_SERIAL && gd2 == PIN_UNUSED)) {
+    return STATUS_INVALID_PARAM;
   }
+
+  pinMode(gd0, INPUT);
   setState(STATE_RX);
   return STATUS_OK;
 }
@@ -488,7 +492,7 @@ Status Radio::abortTransmit() {
 }
 
 Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
-  if (pktFormat != PKT_FORMAT_NORMAL) {
+  if (pktFormat != PKT_FORMAT_NORMAL || pktLenMode == PKT_LEN_MODE_INFINITE) {
     return STATUS_BAD_STATE;
   }
 
@@ -564,7 +568,7 @@ Status Radio::transmit(uint8_t *data, size_t length, uint8_t addr) {
 }
 
 Status Radio::startTransmit(uint8_t *data, size_t length, uint8_t addr) {
-  if (pktFormat != PKT_FORMAT_NORMAL) {
+  if (pktFormat != PKT_FORMAT_NORMAL || pktLenMode == PKT_LEN_MODE_INFINITE) {
     return STATUS_BAD_STATE;
   }
 
@@ -647,7 +651,7 @@ void Radio::clearTransmitAction() {
 // }
 
 Status Radio::finishTransmit() {
-  if (pktFormat != PKT_FORMAT_NORMAL) {
+  if (pktFormat != PKT_FORMAT_NORMAL || pktLenMode == PKT_LEN_MODE_INFINITE) {
     return STATUS_BAD_STATE;
   }
   bool underflow = txFifoUnderflowed();
@@ -664,7 +668,7 @@ Status Radio::abortReceive() {
 }
 
 Status Radio::startReceive(uint8_t addr) {
-  if (pktFormat != PKT_FORMAT_NORMAL) {
+  if (pktFormat != PKT_FORMAT_NORMAL || pktLenMode == PKT_LEN_MODE_INFINITE) {
     return STATUS_BAD_STATE;
   }
 
@@ -717,7 +721,7 @@ Status Radio::receive(uint8_t *data, size_t length, size_t *read, uint8_t addr) 
 }
 
 Status Radio::readData(uint8_t *data, size_t length, size_t *read) {
-  if (pktFormat != PKT_FORMAT_NORMAL) {
+  if (pktFormat != PKT_FORMAT_NORMAL || pktLenMode == PKT_LEN_MODE_INFINITE) {
     return STATUS_BAD_STATE;
   }
 

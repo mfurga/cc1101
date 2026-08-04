@@ -256,7 +256,7 @@ Sets the packet length mode. Packet length types:
 
 * `PKT_LEN_MODE_FIXED` - Fixed packet length mode. The length field is not transmitted in TX and the `length` parameter indicates the number of bytes that the handler will accept in RX.
 * `PKT_LEN_MODE_VARIABLE` - Variable packet length mode. The length field is transmitted in TX. The packet handler assumes that the first byte (after the sync word) is the length byte and receives the number of bytes indicated by its value. The `length` parameter is used to set the maximum packet length allowed in RX. Any packet whose length byte exceeds `length` will be discarded.
-* `PKT_LEN_MODE_INFINITE` - Infinite packet length mode. Neither TX nor RX is bounded by a byte count, so the packet handler never ends a packet on its own. The `length` parameter is ignored. This is the mode to use with the serial modes, where the MCU decides when the transfer ends.
+* `PKT_LEN_MODE_INFINITE` - Infinite packet length mode. Intended for serial modes; FIFO-based `transmit()`, `receive()`, and non-blocking packet APIs return `STATUS_BAD_STATE` when this mode is selected.
 
 > [!IMPORTANT]
 > The library supports only packets up to 255 bytes.
@@ -332,7 +332,7 @@ Puts the radio into TX and makes GDO0 an output.
 
 Returns
 * `STATUS_BAD_STATE` if the packet format is not set to `PKT_FORMAT_SYNC_SERIAL` or `PKT_FORMAT_ASYNC_SERIAL`
-* `STATUS_INVALID_PARAM` if GDO0 was not configured
+* `STATUS_INVALID_PARAM` if GDO0 was not configured, or if GDO2 was not configured in synchronous serial mode
 * `STATUS_OK` on success
 
 #### serialReceive
@@ -343,6 +343,7 @@ Puts the radio into RX and makes GDO0 an input. The MCU then samples the data on
 
 Returns
 * `STATUS_BAD_STATE` if the packet format is not set to `PKT_FORMAT_SYNC_SERIAL` or `PKT_FORMAT_ASYNC_SERIAL`
+* `STATUS_INVALID_PARAM` if GDO0 was not configured, or if GDO2 was not configured in synchronous serial mode
 * `STATUS_OK` on success
 
 #### idle

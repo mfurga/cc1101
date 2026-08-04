@@ -71,7 +71,11 @@ void setup() {
 
   radio.setPacketFormat(PKT_FORMAT_SYNC_SERIAL);
 
-  radio.serialReceive();
+  if (radio.serialReceive() != STATUS_OK) {
+    Serial.println(F("serialReceive() failed"));
+    while (true) { delay(1000); }
+  }
+
   Serial.println(F("Receiving ..."));
 }
 
