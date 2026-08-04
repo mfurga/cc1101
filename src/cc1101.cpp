@@ -372,6 +372,9 @@ void Radio::setPacketLengthMode(PacketLengthMode mode, uint8_t length) {
       /* Indicates the maximum packet length allowed. */
       writeReg(CC1101_REG_PKTLEN, length);
     break;
+    case PKT_LEN_MODE_INFINITE:
+        /* nop */
+    break;
   }
 }
 
