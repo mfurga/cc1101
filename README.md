@@ -217,7 +217,7 @@ Sets the packet format.
 * `PKT_FORMAT_NORMAL` - Normal mode (default). Data is read from and written to the FIFO buffers by the packet engine. This is the mode used by `transmit()`, `receive()` and the non-blocking APIs.
 * `PKT_FORMAT_SYNC_SERIAL` - Synchronous serial mode. The FIFO buffers are bypassed and data is transferred one bit at a time over the GDO pins, clocked by the radio.
 * `PKT_FORMAT_ASYNC_SERIAL` - Asynchronous serial mode. The FIFO buffers are bypassed and data is transferred over a single GDO pin with no clock, so the MCU times every bit itself.
-* `PKT_FORMAT_RANDOM_TX` - Random TX mode. The radio transmits an endless PN9 sequence instead of real data. Intended for testing only.
+* `PKT_FORMAT_RANDOM_TX` - Random TX mode. The radio transmits an endless PN9 sequence instead of real data. Listed for completeness: the library provides no method to start such a transmission, so selecting this format on its own has no effect.
 
 #### setSyncMode
 ```cpp
@@ -315,7 +315,7 @@ Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
 
 The serial modes bypass the FIFO buffers entirely and expose the modulator/demodulator over the GDO pins. They exist for signals the packet engine cannot handle. Enable one with `setPacketFormat()`, then start the transfer with `serialTransmit()` or `serialReceive()`.
 
-In both modes GDO0 carries the data in both directions. The radio hardwires it as the TX data input and automatically switches it to an input while TX is active; `serialTransmit()` and `serialReceive()` switch the MCU side of the pin to match.
+In both modes GDO0 carries the data in both directions: in TX the radio samples the level the MCU drives on it, in RX the radio drives it with the received data. The radio reverses the pin direction on its own when it enters TX, and `serialTransmit()` and `serialReceive()` set the MCU side of the pin to match.
 
 Synchronous mode additionally uses GDO2, on which the radio drives a serial clock, and the MCU sets up or samples GDO0 on that clock. The radio makes the bit decision in RX, so the data rate has to be configured to match the signal. If preamble and sync word transmission/detection are left enabled, the radio inserts and detects them and the MCU only provides or receives the payload; address filtering is unavailable. With `SYNC_MODE_NO_PREAMBLE` the MCU is responsible for framing, and CRC, whitening, Manchester and FEC should be disabled as well.
 

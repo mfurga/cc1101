@@ -399,6 +399,11 @@ void Radio::setPacketFormat(PacketFormat fmt) {
 
   writeRegField(CC1101_REG_PKTCTRL0, (uint8_t)fmt, 5, 4);
 
+  if ((fmt == PKT_FORMAT_SYNC_SERIAL || fmt == PKT_FORMAT_ASYNC_SERIAL) &&
+      gd0 != PIN_UNUSED) {
+    detachInterrupt(digitalPinToInterrupt(gd0));
+  }
+
   switch (fmt) {
     case PKT_FORMAT_ASYNC_SERIAL:
       setGdoConfig(GDO0, GDO_CFG_SERIAL_DATA_ASYNC);
@@ -464,6 +469,10 @@ Status Radio::serialTransmit() {
     return STATUS_INVALID_PARAM;
   }
 
+  if (pktFormat == PKT_FORMAT_SYNC_SERIAL) {
+    pinMode(gd2, INPUT);
+  }
+
   pinMode(gd0, OUTPUT);
   setState(STATE_TX);
   return STATUS_OK;
@@ -477,6 +486,10 @@ Status Radio::serialReceive() {
   if (gd0 == PIN_UNUSED ||
       (pktFormat == PKT_FORMAT_SYNC_SERIAL && gd2 == PIN_UNUSED)) {
     return STATUS_INVALID_PARAM;
+  }
+
+  if (pktFormat == PKT_FORMAT_SYNC_SERIAL) {
+    pinMode(gd2, INPUT);
   }
 
   pinMode(gd0, INPUT);
