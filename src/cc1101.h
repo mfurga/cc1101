@@ -279,6 +279,10 @@ class Radio {
   int8_t getRSSI();
   uint8_t getLQI();
 
+  State getState();
+  void setState(State);
+  void sendCmd(byte addr);
+
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
   uint8_t readReg(uint8_t addr);
   void readRegBurst(uint8_t addr, uint8_t *buff, size_t size);
@@ -303,15 +307,11 @@ class Radio {
   Status abortReceive();
   Status abortTransmit();
 
-  void sendCmd(byte addr);
-
   void setRegs();
   void hardReset();
   void flushRxBuffer();
   void flushTxBuffer();
 
-  State getState();
-  void setState(State);
   void saveStatus(byte status);
 
   uint8_t cs, gd0, gd2;
