@@ -19,6 +19,8 @@ On an ESP32, any GPIOs can be used; you can specify alternate ones in the constr
 
 The CC1101 also exposes two general-purpose pins (GDO0 and GDO2) that can trigger MCU interrupts on specific events (such as when the RX FIFO fills up). Using these pins is optional for basic operations, but GDO0 must be connected to an interrupt-capable pin on the MCU if you want to use the interrupt-driven (callback-based) non-blocking RX/TX APIs.
 
+In the serial modes the GDO pins carry the data itself. GDO0 is the data line in both directions, and synchronous mode additionally requires GDO2, which the radio drives as the serial clock. Asynchronous mode requires GDO0 only.
+
 ## Software reference
 
 ### Radio configuration
@@ -36,7 +38,6 @@ Status setFrequency(double freq)
 Sets the frequency (in MHz). Allowed frequency bands: 300-348 MHz, 387-464 MHz, 779-928 MHz.
 
 Returns `STATUS_INVALID_PARAM` on bad frequency.
-
 
 #### setFrequencyDeviation
 ```cpp
@@ -207,6 +208,17 @@ Returns LQI (Link Quality Indicator) of the last received packet.
 
 <img width="1464" height="318" alt="Packet format" src="https://github.com/user-attachments/assets/75a05af0-dbfd-47a5-acb4-ef7e2af300be" />
 
+#### setPacketFormat
+```cpp
+void setPacketFormat(PacketFormat fmt)
+```
+Sets the packet format.
+
+* `PKT_FORMAT_NORMAL` - Normal mode (default). Data is read from and written to the FIFO buffers by the packet engine. This is the mode used by `transmit()`, `receive()` and the non-blocking APIs.
+* `PKT_FORMAT_SYNC_SERIAL` - Synchronous serial mode. The FIFO buffers are bypassed and data is transferred one bit at a time over the GDO pins, clocked by the radio.
+* `PKT_FORMAT_ASYNC_SERIAL` - Asynchronous serial mode. The FIFO buffers are bypassed and data is transferred over a single GDO pin with no clock, so the MCU times every bit itself.
+* `PKT_FORMAT_RANDOM_TX` - Random TX mode. The radio transmits an endless PN9 sequence instead of real data. Listed for completeness: the library provides no method to start such a transmission, so selecting this format on its own has no effect.
+
 #### setSyncMode
 ```cpp
 void setSyncMode(SyncMode mode)
@@ -244,6 +256,7 @@ Sets the packet length mode. Packet length types:
 
 * `PKT_LEN_MODE_FIXED` - Fixed packet length mode. The length field is not transmitted in TX and the `length` parameter indicates the number of bytes that the handler will accept in RX.
 * `PKT_LEN_MODE_VARIABLE` - Variable packet length mode. The length field is transmitted in TX. The packet handler assumes that the first byte (after the sync word) is the length byte and receives the number of bytes indicated by its value. The `length` parameter is used to set the maximum packet length allowed in RX. Any packet whose length byte exceeds `length` will be discarded.
+* `PKT_LEN_MODE_INFINITE` - Infinite packet length mode. Intended for serial modes; FIFO-based `transmit()`, `receive()`, and non-blocking packet APIs return `STATUS_BAD_STATE` when this mode is selected.
 
 > [!IMPORTANT]
 > The library supports only packets up to 255 bytes.
@@ -297,6 +310,47 @@ Enables/disables Forward Error Correction (FEC) with interleaving for the packet
 > Only supported for fixed packet length mode and when Manchester encoding is disabled.
 
 Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
+
+### Serial modes
+
+The serial modes bypass the FIFO buffers entirely and expose the modulator/demodulator over the GDO pins. They exist for signals the packet engine cannot handle. Enable one with `setPacketFormat()`, then start the transfer with `serialTransmit()` or `serialReceive()`.
+
+In both modes GDO0 carries the data in both directions: in TX the radio samples the level the MCU drives on it, in RX the radio drives it with the received data. The radio reverses the pin direction on its own when it enters TX, and `serialTransmit()` and `serialReceive()` set the MCU side of the pin to match.
+
+Synchronous mode additionally uses GDO2, on which the radio drives a serial clock, and the MCU sets up or samples GDO0 on that clock. The radio makes the bit decision in RX, so the data rate has to be configured to match the signal. If preamble and sync word transmission/detection are left enabled, the radio inserts and detects them and the MCU only provides or receives the payload; address filtering is unavailable. With `SYNC_MODE_NO_PREAMBLE` the MCU is responsible for framing, and CRC, whitening, Manchester and FEC should be disabled as well.
+
+In asynchronous mode there is no bit decision at all. In RX the raw demodulated data appears on GDO0 and the MCU has to oversample it; in TX the modulator samples whatever level the MCU drives 8 times per bit period. The configured data rate therefore does not have to match the signal. Data whitening, the interleaver, FEC and Manchester encoding cannot be used, and MSK modulation is not supported.
+
+#### serialTransmit
+```cpp
+Status serialTransmit()
+```
+Puts the radio into TX and makes GDO0 an output.
+
+> [!IMPORTANT]
+> The radio transmits one extra byte after the data ("Extra Byte Transmitted in TX" in the [errata](https://www.ti.com/lit/er/swrz020e/swrz020e.pdf)). Send 12 dummy bits before leaving TX so it does not truncate real data.
+
+Returns
+* `STATUS_BAD_STATE` if the packet format is not set to `PKT_FORMAT_SYNC_SERIAL` or `PKT_FORMAT_ASYNC_SERIAL`
+* `STATUS_INVALID_PARAM` if GDO0 was not configured, or if GDO2 was not configured in synchronous serial mode
+* `STATUS_OK` on success
+
+#### serialReceive
+```cpp
+Status serialReceive()
+```
+Puts the radio into RX and makes GDO0 an input. The MCU then samples the data on GDO0, bit by bit. Call `idle()` to stop receiving.
+
+Returns
+* `STATUS_BAD_STATE` if the packet format is not set to `PKT_FORMAT_SYNC_SERIAL` or `PKT_FORMAT_ASYNC_SERIAL`
+* `STATUS_INVALID_PARAM` if GDO0 was not configured, or if GDO2 was not configured in synchronous serial mode
+* `STATUS_OK` on success
+
+#### idle
+```cpp
+void idle()
+```
+Puts the radio into the idle state. Used to end a serial mode transfer, and to re-arm sync word detection between packets.
 
 ### Direct register access
 

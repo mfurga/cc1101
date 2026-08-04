@@ -166,7 +166,7 @@ enum SyncMode {
 enum PacketLengthMode {
   PKT_LEN_MODE_FIXED    = 0,  /* Length configured in PKTLEN register */
   PKT_LEN_MODE_VARIABLE = 1,  /* Packet length put in the first byte */
-  // TODO(mfurga): PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
+  PKT_LEN_MODE_INFINITE = 2,  /* Infinite packet length mode */
 };
 
 enum AddressFilteringMode {
@@ -174,6 +174,13 @@ enum AddressFilteringMode {
   ADDR_FILTER_MODE_CHECK = 1,         /* Address check, no broadcast */
   ADDR_FILTER_MODE_CHECK_BC_0 = 2,    /* Address check, 0 broadcast */
   ADDR_FILTER_MODE_CHECK_BC_0_255 = 3 /* Address check, 0 and 255 broadcast */
+};
+
+enum PacketFormat {
+  PKT_FORMAT_NORMAL       = 0,  /* FIFO-based packet engine (default) */
+  PKT_FORMAT_SYNC_SERIAL  = 1,  /* Synchronous serial mode on GDO pins */
+  PKT_FORMAT_RANDOM_TX    = 2,  /* PN9 random data, TX test only */
+  PKT_FORMAT_ASYNC_SERIAL = 3,  /* Asynchronous serial mode on GDO pins */
 };
 
 enum GdoPin {
@@ -184,6 +191,9 @@ enum GdoPin {
 enum GdoConfig {
   GDO_CFG_RX_FIFO_THR       = 0x01, /* RX FIFO >= threshold or end of packet */
   GDO_CFG_SYNC_WORD         = 0x06, /* asserts on sync, de-asserts at end of packet */
+  GDO_CFG_SERIAL_CLOCK      = 0x0b, /* serial clock (synchronous serial mode) */
+  GDO_CFG_SERIAL_DATA_SYNC  = 0x0c, /* serial synchronous data output */
+  GDO_CFG_SERIAL_DATA_ASYNC = 0x0d, /* serial data output (asynchronous mode) */
   GDO_CFG_HIGH_Z            = 0x2e, /* high impedance (3-state) */
   GDO_CFG_CONSTANT_LOW      = 0x2f, /* hardwired to 0 (no edges) */
 };
@@ -260,8 +270,15 @@ class Radio {
   // bool available();
   Status readData(uint8_t *data, size_t length, size_t *read = nullptr);
 
+  void setPacketFormat(PacketFormat fmt);
+
+  Status serialTransmit();
+  Status serialReceive();
+  void idle();
+
   int8_t getRSSI();
   uint8_t getLQI();
+
   uint8_t readRegField(uint8_t addr, uint8_t hi, uint8_t lo);
   uint8_t readReg(uint8_t addr);
   void readRegBurst(uint8_t addr, uint8_t *buff, size_t size);
@@ -304,6 +321,7 @@ class Radio {
 
   State currentState = STATE_IDLE;
   Modulation mod = MOD_2FSK;
+  PacketFormat pktFormat = PKT_FORMAT_NORMAL;
   PacketLengthMode pktLenMode = PKT_LEN_MODE_FIXED;
   AddressFilteringMode addrFilterMode = ADDR_FILTER_MODE_NONE;
 
