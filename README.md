@@ -352,10 +352,28 @@ void idle()
 ```
 Puts the radio into the idle state. Used to end a serial mode transfer, and to re-arm sync word detection between packets.
 
-### Direct register access
+### Low-level access
 
 > [!WARNING]
-> The following methods are not part of the standard library API. Modifying register values directly may cause other library methods to work incorrectly. Use these methods only when the desired functionality is not available through the standard API. Refer to the [datasheet](https://www.ti.com/lit/ds/symlink/cc1101.pdf) and the library's source code before use to ensure the changes do not conflict with the library's internal state.
+> The following methods are not part of the standard library API. Modifying register values, changing the radio state, or issuing command strobes directly may cause other library methods to work incorrectly. Use these methods only when the desired functionality is not available through the standard API. Refer to the [datasheet](https://www.ti.com/lit/ds/symlink/cc1101.pdf) and the library's source code before use to ensure the changes do not conflict with the library's internal state.
+
+#### getState
+```cpp
+State getState()
+```
+Returns the state the radio is currently in: `STATE_IDLE`, `STATE_RX`, `STATE_TX`, `STATE_FSTXON`, `STATE_CALIBRATE`, `STATE_SETTLING`, `STATE_RXFIFO_OVERFLOW` or `STATE_TXFIFO_UNDERFLOW`.
+
+#### setState
+```cpp
+void setState(State state)
+```
+Puts the radio into the given state and blocks until it reports that state. Only `STATE_IDLE`, `STATE_RX` and `STATE_TX` are supported; any other value is ignored.
+
+#### sendCmd
+```cpp
+void sendCmd(byte addr)
+```
+Issues a command strobe, given as one of the `CC1101_CMD_*` constants.
 
 #### readReg
 ```cpp
