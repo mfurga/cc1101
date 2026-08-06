@@ -313,7 +313,7 @@ Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
 
 ### Serial modes
 
-The serial modes bypass the FIFO buffers entirely and expose the modulator/demodulator over the GDO pins. They exist for signals the packet engine cannot handle. Enable one with `setPacketFormat()`, then start the transfer with `serialTransmit()` or `serialReceive()`.
+The serial modes bypass the FIFO buffers entirely and expose the modulator/demodulator over the GDO pins. They exist for signals the packet engine cannot handle.
 
 In both modes GDO0 carries the data in both directions: in TX the radio samples the level the MCU drives on it, in RX the radio drives it with the received data. The radio reverses the pin direction on its own when it enters TX, and `serialTransmit()` and `serialReceive()` set the MCU side of the pin to match.
 
