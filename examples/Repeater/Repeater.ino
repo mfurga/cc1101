@@ -10,9 +10,10 @@
 
 using namespace CC1101;
 
-#define GDO0_PIN 15
+#define CS_PIN   10
+#define GDO0_PIN 15  // data
 
-Radio radio(/* cs */ 10, /* gd0 */ GDO0_PIN);
+Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN);
 
 const double   FREQUENCY    = 433.8;  // MHz (must match the signal you repeat)
 const double   RX_BANDWIDTH = 64.0;   // kHz (wide enough for the signal you repeat)
