@@ -15,6 +15,7 @@ using namespace CC1101;
 Radio radio(/* cs */ 10, /* gd0 */ GDO0_PIN);
 
 const double   FREQUENCY    = 433.8;  // MHz (must match the signal you repeat)
+const double   RX_BANDWIDTH = 64.0;   // kHz (wide enough for the signal you repeat)
 // A high data rate makes the TX modulator oversample finely so arbitrary
 // captured timings are reproduced well.
 const double   DATA_RATE    = 250.0;  // kBaud
@@ -114,7 +115,7 @@ void setup() {
 
   radio.setModulation(MOD_ASK_OOK);
   radio.setFrequency(FREQUENCY);
-  radio.setRxBandwidth(64.0);
+  radio.setRxBandwidth(RX_BANDWIDTH);
   radio.setDataRate(DATA_RATE);
   radio.setOutputPower(OUTPUT_POWER);
 
