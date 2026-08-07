@@ -49,10 +49,10 @@ bool captureBurst() {
   // Wait for the start of a real burst: a HIGH pulse at least PULSE_MIN_US long.
   unsigned long edge;
   for (;;) {
-    while (digitalRead(GDO0_PIN) == HIGH) {}
+    while (digitalRead(GDO0_PIN) == HIGH) { yield(); }
     while (digitalRead(GDO0_PIN) == LOW) { yield(); }
     edge = micros();
-    while (digitalRead(GDO0_PIN) == HIGH) {}
+    while (digitalRead(GDO0_PIN) == HIGH) { yield(); }
 
     uint32_t high = micros() - edge;
     if (high >= PULSE_MIN_US) {
@@ -119,13 +119,25 @@ void setup() {
   radio.setDataRate(DATA_RATE);
   radio.setOutputPower(OUTPUT_POWER);
 
+  // Receive/transmit raw serial data: disable packet engine features.
+  radio.setPacketLengthMode(PKT_LEN_MODE_INFINITE);
+  radio.setSyncMode(SYNC_MODE_NO_PREAMBLE);
+  radio.setCrc(false);
+  radio.setDataWhitening(false);
+  radio.setManchester(false);
+  radio.setFEC(false);
+
   radio.setPacketFormat(PKT_FORMAT_ASYNC_SERIAL);
 
   Serial.println(F("Repeater ready."));
 }
 
 void loop() {
-  radio.serialReceive();
+  if (radio.serialReceive() != STATUS_OK) {
+    Serial.println(F("serialReceive() failed"));
+    delay(1000);
+    return;
+  }
   Serial.println(F("Listening for a burst ..."));
 
   if (!captureBurst()) {
