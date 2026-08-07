@@ -6,7 +6,7 @@
 using namespace CC1101;
 
 #define CS_PIN   10
-#define GDO0_PIN 15
+#define GDO0_PIN 15  // data
 
 Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN);
 
