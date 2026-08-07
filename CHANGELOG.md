@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [1.5.0] - 2026-08-07
+
+### Added
+- Synchronous and asynchronous serial modes, with `setPacketFormat()`, `serialTransmit()`, `serialReceive()` and `idle()`.
+- Optional GDO pin parameter for `setTransmitAction()` and `setReceiveAction()`.
+- `getState()`, `setState()` and `sendCmd()` exposed for low-level access.
+- Synchronous and asynchronous serial mode examples, and an OOK repeater example.
+
+### Changed
+- FIFO-based transmit and receive methods return `STATUS_BAD_STATE` when a serial packet format or infinite packet length mode is selected.
+
 ## [1.4.0] - 2026-06-25
 
 ### Added
@@ -114,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blocking receive and a receive callback.
 - Transmit and receive examples, plus Arduino / PlatformIO packaging.
 
+[1.5.0]: https://github.com/mfurga/cc1101/compare/1.4.0...1.5.0
 [1.4.0]: https://github.com/mfurga/cc1101/compare/1.3.0...1.4.0
 [1.3.0]: https://github.com/mfurga/cc1101/compare/1.2.2...1.3.0
 [1.2.2]: https://github.com/mfurga/cc1101/compare/1.2.1...1.2.2
