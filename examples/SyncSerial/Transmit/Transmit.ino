@@ -85,7 +85,7 @@ void loop() {
   clockOutWord(MARKER);
   clockOutWord(counter);
 
-  // Clock out exactly 12 dummy bits before leaving TX (CC1101 errata SWRZ020E,
+  // Send exactly 12 dummy bits before leaving TX (CC1101 errata SWRZ020E,
   // "Extra Byte Transmitted in TX").
   for (int i = 0; i < 12; i++) {
     clockOutBit(0);

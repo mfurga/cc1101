@@ -85,7 +85,12 @@ void loop() {
   sendWord(MARKER);
   sendWord(counter);
 
-  digitalWrite(GDO0_PIN, LOW);  // leave the line idle
+  // Send exactly 12 dummy bits before leaving TX (CC1101 errata SWRZ020E,
+  // "Extra Byte Transmitted in TX").
+  for (int i = 0; i < 12; i++) {
+    sendBit(0);
+  }
+
   radio.idle();
   counter++;
 
