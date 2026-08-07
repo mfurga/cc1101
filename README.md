@@ -313,7 +313,7 @@ Returns `STATUS_BAD_STATE` if FEC cannot be enabled.
 
 ### Serial modes
 
-The serial modes bypass the FIFO buffers entirely and expose the modulator/demodulator over the GDO pins. They exist for signals the packet engine cannot handle. Enable one with `setPacketFormat()`, then start the transfer with `serialTransmit()` or `serialReceive()`.
+The serial modes bypass the FIFO buffers entirely and expose the modulator/demodulator over the GDO pins. They exist for signals the packet engine cannot handle.
 
 In both modes GDO0 carries the data in both directions: in TX the radio samples the level the MCU drives on it, in RX the radio drives it with the received data. The radio reverses the pin direction on its own when it enters TX, and `serialTransmit()` and `serialReceive()` set the MCU side of the pin to match.
 
@@ -328,7 +328,7 @@ Status serialTransmit()
 Puts the radio into TX and makes GDO0 an output.
 
 > [!IMPORTANT]
-> The radio transmits one extra byte after the data ("Extra Byte Transmitted in TX" in the [errata](https://www.ti.com/lit/er/swrz020e/swrz020e.pdf)). Send 12 dummy bits before leaving TX so it does not truncate real data.
+> With packet handling disabled, leaving TX in the middle of a byte makes the radio repeat the first byte of the next transmission ("Extra Byte Transmitted in TX" in the [errata](https://www.ti.com/lit/er/swrz020e/swrz020e.pdf)). Send 12 dummy bits before calling `idle()` to avoid it.
 
 Returns
 * `STATUS_BAD_STATE` if the packet format is not set to `PKT_FORMAT_SYNC_SERIAL` or `PKT_FORMAT_ASYNC_SERIAL`

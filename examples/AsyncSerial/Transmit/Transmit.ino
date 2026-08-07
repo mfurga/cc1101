@@ -1,15 +1,18 @@
-// Synchronous serial mode transmit example.
+// Asynchronous serial mode transmit example.
 
 #include <Arduino.h>
 #include <cc1101.h>
 
 using namespace CC1101;
 
-#define CS_PIN 10
+#define CS_PIN   10
 #define GDO0_PIN 15  // data
-#define GDO2_PIN 16  // serial clock
 
-Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN, /* gd2 */ GDO2_PIN);
+Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN);
+
+// Data rate in kBaud. One bit therefore lasts 1000 / DATA_RATE microseconds.
+const double DATA_RATE = 10.0;
+const uint32_t BIT_US = (uint32_t)(1000.0 / DATA_RATE + 0.5);
 
 // Every packet is a marker followed by a counter, both sent MSB first. No
 // preamble or sync word is added by the chip; the receive example finds the
@@ -18,15 +21,14 @@ const uint32_t MARKER = 0xdeadbeef;
 
 uint32_t counter = 0;
 
-static inline void clockOutBit(uint8_t bit) {
-  while (digitalRead(GDO2_PIN) == HIGH) { yield(); }
+static inline void sendBit(uint8_t bit) {
   digitalWrite(GDO0_PIN, bit ? HIGH : LOW);
-  while (digitalRead(GDO2_PIN) == LOW) { yield(); }
+  delayMicroseconds(BIT_US);
 }
 
-static void clockOutWord(uint32_t word) {
+static void sendWord(uint32_t word) {
   for (int b = 31; b >= 0; b--) {
-    clockOutBit((word >> b) & 0x01);
+    sendBit((word >> b) & 0x01);
   }
 }
 
@@ -52,13 +54,11 @@ void setup() {
     while (true) { delay(1000); }
   }
 
-  radio.setModulation(MOD_2FSK);
+  radio.setModulation(MOD_ASK_OOK);
   radio.setFrequency(433.8);
-  radio.setFrequencyDeviation(20);
-  radio.setDataRate(10);
+  radio.setDataRate(DATA_RATE);
   radio.setOutputPower(10);
 
-  // Send raw data only: disable all of the chip's packet handling.
   radio.setPacketLengthMode(PKT_LEN_MODE_INFINITE);
   radio.setSyncMode(SYNC_MODE_NO_PREAMBLE);
   radio.setCrc(false);
@@ -66,7 +66,7 @@ void setup() {
   radio.setManchester(false);
   radio.setFEC(false);
 
-  radio.setPacketFormat(PKT_FORMAT_SYNC_SERIAL);
+  radio.setPacketFormat(PKT_FORMAT_ASYNC_SERIAL);
 }
 
 void loop() {
@@ -82,16 +82,17 @@ void loop() {
     return;
   }
 
-  clockOutWord(MARKER);
-  clockOutWord(counter);
+  sendWord(MARKER);
+  sendWord(counter);
 
   // Send exactly 12 dummy bits before leaving TX (CC1101 errata SWRZ020E,
   // "Extra Byte Transmitted in TX").
   for (int i = 0; i < 12; i++) {
-    clockOutBit(0);
+    sendBit(0);
   }
 
   radio.idle();
   counter++;
+
   delay(1000);
 }
