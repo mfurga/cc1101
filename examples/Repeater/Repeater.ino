@@ -13,8 +13,6 @@ using namespace CC1101;
 #define CS_PIN   10
 #define GDO0_PIN 15  // data
 
-Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN);
-
 const double   FREQUENCY    = 433.8;  // MHz (must match the signal you repeat)
 const double   RX_BANDWIDTH = 64.0;   // kHz (wide enough for the signal you repeat)
 // A high data rate makes the TX modulator oversample finely so arbitrary
@@ -25,6 +23,8 @@ const size_t   MAX_PULSES   = 512;    // capture buffer size (transitions)
 const size_t   MIN_PULSES   = 16;     // ignore bursts shorter than this (noise)
 const uint32_t PULSE_MIN_US = 450;    // a real burst must start with a HIGH pulse this long
 const uint32_t GAP_US       = 6000;   // idle this long; end of burst
+
+Radio radio(/* cs */ CS_PIN, /* gd0 */ GDO0_PIN);
 
 uint16_t pulses[MAX_PULSES];
 size_t   pulseCount = 0;
